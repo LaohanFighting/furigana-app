@@ -1,0 +1,52 @@
+// 日语振假名站点 - 数据库模型
+// 生产使用 PostgreSQL（Vercel Postgres / Railway）；本地可用同一 Postgres 或远程 URL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String   @id @default(cuid())
+  email      String   @unique
+  isPremium  Boolean  @default(false)
+  dailyUsed  Int      @default(0)   // 免费用户当日已用次数
+  dailyResetAt DateTime?            // 免费用户次数重置时间（按日）
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  orders     Order[]
+  sessions   Session[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model Verification {
+  id        String   @id @default(cuid())
+  email     String
+  code      String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model Order {
+  id         String   @id @default(cuid())
+  orderId    String   @unique  // 支付平台订单号，用于回调
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount     Int      // 金额（分）
+  status     String   // pending | paid | failed | refunded
+  channel    String?  // alipay | wechat
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
