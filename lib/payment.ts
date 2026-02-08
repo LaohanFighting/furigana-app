@@ -44,7 +44,11 @@ export async function createPaymentOrder(
   const notifyUrl = process.env.PAYMENT_NOTIFY_URL;
   const returnUrl = process.env.PAYMENT_RETURN_URL;
 
-  if (!apiUrl || !appId || !key || !notifyUrl) {
+  if (!returnUrl || !notifyUrl) {
+    throw new Error('Missing payment callback environment variables');
+  }
+
+  if (!apiUrl || !appId || !key) {
     return {
       success: true,
       orderId: order.id,
