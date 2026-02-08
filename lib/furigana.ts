@@ -10,9 +10,10 @@ async function getKuroshiro() {
   if (kuroshiroInstance) return kuroshiroInstance;
   const kuroMod = await import('kuroshiro');
   const analyzerMod = await import('kuroshiro-analyzer-kuromoji');
-  const Kuroshiro = (kuroMod as { default?: typeof kuroMod }).default ?? kuroMod;
-  const KuromojiAnalyzer = (analyzerMod as { default?: typeof analyzerMod }).default ?? analyzerMod;
-  const kuroshiro = new (Kuroshiro as new () => { init: (a: unknown) => Promise<void>; convert: (s: string, o: { to: string; mode: string }) => Promise<string> })();
+  const Kuroshiro = (kuroMod as unknown as { default?: typeof kuroMod }).default ?? kuroMod;
+  const KuromojiAnalyzer = (analyzerMod as unknown as { default?: typeof analyzerMod }).default ?? analyzerMod;
+  type KuroshiroClass = new () => { init: (a: unknown) => Promise<void>; convert: (s: string, o: { to: string; mode: string }) => Promise<string> };
+  const kuroshiro = new (Kuroshiro as KuroshiroClass)();
   await kuroshiro.init(new (KuromojiAnalyzer as new () => object)());
   kuroshiroInstance = kuroshiro;
   return kuroshiro;
