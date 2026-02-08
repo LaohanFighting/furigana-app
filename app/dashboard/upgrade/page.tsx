@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { LocaleProvider, useLocale } from '@/app/LocaleProvider';
@@ -92,16 +92,18 @@ export default function UpgradePage() {
   const initial = getInitialLocale();
   return (
     <LocaleProvider initial={initial}>
-      <SyncLocaleFromUrl />
-      <header className="border-b border-stone-200 bg-white">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
-          <Link href="/dashboard" className="font-semibold text-stone-800">{t(initial, 'site.name')}</Link>
-          <LocaleSwitcher current={initial} />
-        </div>
-      </header>
-      <main>
-        <UpgradeContent />
-      </main>
+      <Suspense fallback={<div className="max-w-md mx-auto px-4 py-12 text-center text-stone-500">Loading…</div>}>
+        <SyncLocaleFromUrl />
+        <header className="border-b border-stone-200 bg-white">
+          <div className="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
+            <Link href="/dashboard" className="font-semibold text-stone-800">{t(initial, 'site.name')}</Link>
+            <LocaleSwitcher current={initial} />
+          </div>
+        </header>
+        <main>
+          <UpgradeContent />
+        </main>
+      </Suspense>
     </LocaleProvider>
   );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { LocaleProvider, useLocale } from '@/app/LocaleProvider';
@@ -102,18 +102,20 @@ export default function DashboardPage() {
   const initial = getLocaleFromSearch();
   return (
     <LocaleProvider initial={initial}>
-      <SyncLocaleFromUrl />
-      <header className="border-b border-stone-200 bg-white">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
-          <Link href="/" className="font-semibold text-stone-800">
-            {t(initial, 'site.name')}
-          </Link>
-          <LocaleSwitcher current={initial} />
-        </div>
-      </header>
-      <main>
-        <DashboardContent />
-      </main>
+      <Suspense fallback={<div className="max-w-2xl mx-auto px-4 py-8 text-center text-stone-500">Loading…</div>}>
+        <SyncLocaleFromUrl />
+        <header className="border-b border-stone-200 bg-white">
+          <div className="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
+            <Link href="/" className="font-semibold text-stone-800">
+              {t(initial, 'site.name')}
+            </Link>
+            <LocaleSwitcher current={initial} />
+          </div>
+        </header>
+        <main>
+          <DashboardContent />
+        </main>
+      </Suspense>
     </LocaleProvider>
   );
 }
