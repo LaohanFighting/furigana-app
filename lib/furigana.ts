@@ -3,18 +3,15 @@
  * 使用 Kuroshiro + Kuromoji 分析日文，仅对汉字词标注平假名，输出标准 <ruby><rt> HTML
  */
 
-// Dynamic import for server-side only (kuromoji dict is large)
-let kuroshiroInstance: { convert: (s: string, o: { to: string; mode: string }) => Promise<string> } | null = null;
+import Kuroshiro from 'kuroshiro';
+import KuromojiAnalyzer from 'kuroshiro-analyzer-kuromoji';
 
-async function getKuroshiro() {
+let kuroshiroInstance: Kuroshiro | null = null;
+
+export async function getKuroshiro(): Promise<Kuroshiro> {
   if (kuroshiroInstance) return kuroshiroInstance;
-  const kuroMod = await import('kuroshiro');
-  const analyzerMod = await import('kuroshiro-analyzer-kuromoji');
-  const Kuroshiro = (kuroMod as unknown as { default?: typeof kuroMod }).default ?? kuroMod;
-  const KuromojiAnalyzer = (analyzerMod as unknown as { default?: typeof analyzerMod }).default ?? analyzerMod;
-  type KuroshiroClass = new () => { init: (a: unknown) => Promise<void>; convert: (s: string, o: { to: string; mode: string }) => Promise<string> };
-  const kuroshiro = new (Kuroshiro as unknown as KuroshiroClass)();
-  await kuroshiro.init(new (KuromojiAnalyzer as unknown as new () => object)());
+  const kuroshiro = new Kuroshiro();
+  await kuroshiro.init(new KuromojiAnalyzer());
   kuroshiroInstance = kuroshiro;
   return kuroshiro;
 }
