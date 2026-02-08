@@ -84,10 +84,15 @@ export default function FuriganaEditor({
     if (!el) return;
     setScrollLeft(0);
     el.scrollLeft = 0;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
     const timer = requestAnimationFrame(() => {
       updateScrollMax();
+      timeoutId = setTimeout(updateScrollMax, 80);
     });
-    return () => cancelAnimationFrame(timer);
+    return () => {
+      cancelAnimationFrame(timer);
+      if (timeoutId !== undefined) clearTimeout(timeoutId);
+    };
   }, [html]);
 
   useEffect(() => {

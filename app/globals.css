@@ -51,6 +51,11 @@
 .furigana-result-scroll .furigana-result {
   display: block;
 }
+/* 滚动区内不换行，使内容横向溢出，才能出现横向滚动条/滑块 */
+.furigana-result-scroll .furigana-result-inner {
+  white-space: nowrap;
+  display: inline-block;
+}
 
 body {
   @apply antialiased bg-stone-50 text-stone-900;
