@@ -43,31 +43,38 @@ export async function POST(request: NextRequest) {
     });
 
     const host = process.env.SMTP_HOST;
-    if (host && process.env.SMTP_USER) {
+    const user = process.env.SMTP_USER;
+    const pass = process.env.SMTP_PASS;
+    const port = Number(process.env.SMTP_PORT) || 587;
+    const secure = port === 465;
+
+    if (host && user && pass) {
       const transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port: Number(process.env.SMTP_PORT) || 587,
-        secure: false,
-        auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS,
-        },
+        host,
+        port,
+        secure,
+        auth: { user, pass },
+        connectionTimeout: 15000,
+        greetingTimeout: 15000,
       });
       await transporter.sendMail({
-        from: process.env.SMTP_FROM || process.env.SMTP_USER,
+        from: process.env.SMTP_FROM || user,
         to: email,
         subject: 'Your verification code - Furigana',
         text: `Your code is: ${code}. It expires in ${CODE_EXPIRE_MINUTES} minutes.`,
         html: `<p>Your verification code is: <strong>${code}</strong>.</p><p>It expires in ${CODE_EXPIRE_MINUTES} minutes.</p>`,
       });
     } else {
-      // 开发环境无 SMTP 时直接打日志
+      if (host || user) {
+        console.warn('[send-code] SMTP partially configured; missing:', !host ? 'SMTP_HOST' : !user ? 'SMTP_USER' : 'SMTP_PASS');
+      }
       console.log('[dev] Verification code for', email, ':', code);
     }
 
     return NextResponse.json({ success: true });
   } catch (e) {
-    console.error('send-code error:', e);
+    const err = e instanceof Error ? e : new Error(String(e));
+    console.error('send-code error:', err.message, err);
     return NextResponse.json(
       { success: false, error: 'Failed to send code' },
       { status: 500 }

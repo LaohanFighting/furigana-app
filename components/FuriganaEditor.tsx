@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useLocale } from '@/app/LocaleProvider';
 import { t } from '@/lib/i18n';
 
@@ -21,6 +21,9 @@ export default function FuriganaEditor({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [copyStatus, setCopyStatus] = useState<'idle' | 'ok' | 'fail'>('idle');
+  const resultScrollRef = useRef<HTMLDivElement>(null);
+  const [scrollLeft, setScrollLeft] = useState(0);
+  const [scrollMax, setScrollMax] = useState(0);
 
   async function convert() {
     if (!input.trim()) return;
@@ -65,6 +68,45 @@ export default function FuriganaEditor({
     return rubyHtml
       .replace(/<rt>[\s\S]*?<\/rt>/gi, '')
       .replace(/<ruby>|<\/ruby>/g, '');
+  }
+
+  function updateScrollMax() {
+    const el = resultScrollRef.current;
+    if (!el) return;
+    const max = Math.max(0, el.scrollWidth - el.clientWidth);
+    setScrollMax(max);
+    if (scrollLeft > max) setScrollLeft(max);
+  }
+
+  useEffect(() => {
+    if (!html) return;
+    const el = resultScrollRef.current;
+    if (!el) return;
+    setScrollLeft(0);
+    el.scrollLeft = 0;
+    const timer = requestAnimationFrame(() => {
+      updateScrollMax();
+    });
+    return () => cancelAnimationFrame(timer);
+  }, [html]);
+
+  useEffect(() => {
+    if (!html) return;
+    const el = resultScrollRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(updateScrollMax);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [html]);
+
+  function onResultScroll() {
+    const el = resultScrollRef.current;
+    if (el) setScrollLeft(el.scrollLeft);
+  }
+
+  function onSliderChange(value: number) {
+    setScrollLeft(value);
+    if (resultScrollRef.current) resultScrollRef.current.scrollLeft = value;
   }
 
   async function copyResult() {
@@ -125,10 +167,29 @@ export default function FuriganaEditor({
       {html && (
         <div>
           <h3 className="text-sm font-medium text-stone-600 mb-1">{t(locale, 'output.title')}</h3>
-          {/* 单容器 + 整段 ruby HTML 注入，禁止 token map / 逐词 span / <br> */}
-          <div className="furigana-result p-4 bg-white border border-stone-200 rounded-lg text-lg leading-relaxed break-words">
-            <span className="furigana-result-inner" dangerouslySetInnerHTML={{ __html: html }} />
+          {/* 可左右滚动的结果区 + 拖动滑块 */}
+          <div
+            ref={resultScrollRef}
+            onScroll={onResultScroll}
+            className="furigana-result-scroll overflow-x-auto overflow-y-hidden border border-stone-200 rounded-lg bg-white"
+          >
+            <div className="furigana-result min-w-min p-4 text-lg leading-relaxed break-words">
+              <span className="furigana-result-inner" dangerouslySetInnerHTML={{ __html: html }} />
+            </div>
           </div>
+          {scrollMax > 0 && (
+            <div className="mt-2 flex items-center gap-2">
+              <span className="text-xs text-stone-500 whitespace-nowrap">左右滑动</span>
+              <input
+                type="range"
+                min={0}
+                max={scrollMax}
+                value={scrollLeft}
+                onChange={(e) => onSliderChange(Number(e.target.value))}
+                className="flex-1 h-2 rounded-lg appearance-none bg-stone-200 accent-amber-600"
+              />
+            </div>
+          )}
           <div className="mt-2">
             <button
               type="button"
