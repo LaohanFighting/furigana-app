@@ -14,7 +14,7 @@ async function getKuroshiro() {
   const KuromojiAnalyzer = (analyzerMod as unknown as { default?: typeof analyzerMod }).default ?? analyzerMod;
   type KuroshiroClass = new () => { init: (a: unknown) => Promise<void>; convert: (s: string, o: { to: string; mode: string }) => Promise<string> };
   const kuroshiro = new (Kuroshiro as unknown as KuroshiroClass)();
-  await kuroshiro.init(new (KuromojiAnalyzer as new () => object)());
+  await kuroshiro.init(new (KuromojiAnalyzer as unknown as new () => object)());
   kuroshiroInstance = kuroshiro;
   return kuroshiro;
 }
