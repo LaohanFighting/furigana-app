@@ -10,7 +10,7 @@ import { textToFuriganaHtml } from '@/lib/furigana';
 import { getUserIdFromRequest, getUsageAndLimit } from '@/lib/auth-server';
 import { prisma } from '@/lib/db';
 
-const FREE_DAILY_LIMIT = 999999; /* 测试阶段取消限制，上线前改回 5 */
+const FREE_DAILY_LIMIT = 3; /* 免费用户每日使用次数限制 */
 
 export async function POST(request: NextRequest) {
   try {

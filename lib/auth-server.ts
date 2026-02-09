@@ -8,7 +8,7 @@ import { prisma } from '@/lib/db';
 import type { User } from '@prisma/client';
 
 const COOKIE_NAME = 'furigana_session';
-const FREE_DAILY_LIMIT = 999999; /* 测试阶段取消限制，上线前改回 5 */
+const FREE_DAILY_LIMIT = 3; /* 免费用户每日使用次数限制 */
 
 function getSecret(): Uint8Array {
   const secret = process.env.SESSION_SECRET;
