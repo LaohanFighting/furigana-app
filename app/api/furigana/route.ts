@@ -2,7 +2,7 @@
  * POST /api/furigana
  * 请求体: { text: string }
  * 响应: { html: string, success: boolean, error?: string, remaining?: number }
- * 仅对汉字标注平假名，输出标准 <ruby><rt> HTML；需登录，免费用户有每日次数限制。
+ * 仅对汉字标注平假名，输出标准 <ruby><rt> HTML；需登录，免费用户有总共次数限制（不重置）。
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -10,7 +10,7 @@ import { textToFuriganaHtml } from '@/lib/furigana';
 import { getUserIdFromRequest, getUsageAndLimit } from '@/lib/auth-server';
 import { prisma } from '@/lib/db';
 
-const FREE_DAILY_LIMIT = 3; /* 免费用户每日使用次数限制 */
+const FREE_TOTAL_LIMIT = 3; /* 免费用户总共使用次数限制（不重置） */
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,14 +39,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { used, limit, resetAt } = await getUsageAndLimit(user);
+    const { used, limit } = await getUsageAndLimit(user);
     if (!user.isPremium && used >= limit) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Daily limit reached',
+          error: 'Total limit reached. Please upgrade to premium for unlimited use.',
           remaining: 0,
-          resetAt: resetAt?.toISOString(),
           html: '',
         },
         { status: 429 }
@@ -55,20 +54,12 @@ export async function POST(request: NextRequest) {
 
     const html = await textToFuriganaHtml(text);
 
+    // 总共限制：直接递增使用次数，不重置
     if (!user.isPremium) {
-      const now = new Date();
-      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      if (!user.dailyResetAt || user.dailyResetAt < todayStart) {
-        await prisma.user.update({
-          where: { id: userId },
-          data: { dailyUsed: 1, dailyResetAt: todayStart },
-        });
-      } else {
-        await prisma.user.update({
-          where: { id: userId },
-          data: { dailyUsed: { increment: 1 } },
-        });
-      }
+      await prisma.user.update({
+        where: { id: userId },
+        data: { dailyUsed: { increment: 1 } },
+      });
     }
 
     const nextRemaining = user.isPremium ? undefined : Math.max(0, limit - used - 1);

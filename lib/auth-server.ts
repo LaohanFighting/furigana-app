@@ -8,7 +8,7 @@ import { prisma } from '@/lib/db';
 import type { User } from '@prisma/client';
 
 const COOKIE_NAME = 'furigana_session';
-const FREE_DAILY_LIMIT = 3; /* 免费用户每日使用次数限制 */
+const FREE_TOTAL_LIMIT = 3; /* 免费用户总共使用次数限制（不重置） */
 
 function getSecret(): Uint8Array {
   const secret = process.env.SESSION_SECRET;
@@ -58,13 +58,9 @@ export async function getUsageAndLimit(user: User): Promise<{
   if (user.isPremium) {
     return { used: 0, limit: Number.MAX_SAFE_INTEGER, resetAt: null };
   }
-  const now = new Date();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const resetAt = user.dailyResetAt && user.dailyResetAt >= todayStart
-    ? new Date(todayStart.getTime() + 24 * 60 * 60 * 1000)
-    : new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
-  const used = user.dailyResetAt && user.dailyResetAt >= todayStart ? user.dailyUsed : 0;
-  return { used, limit: FREE_DAILY_LIMIT, resetAt };
+  // 总共限制：使用 dailyUsed 字段存储总使用次数，不重置
+  const used = user.dailyUsed || 0;
+  return { used, limit: FREE_TOTAL_LIMIT, resetAt: null };
 }
 
 export { COOKIE_NAME };
