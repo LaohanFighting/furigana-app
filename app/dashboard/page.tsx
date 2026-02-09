@@ -23,6 +23,8 @@ function DashboardContent() {
   const [user, setUser] = useState<{
     loggedIn: boolean;
     email?: string;
+    phone?: string;
+    identity?: string;
     isPremium?: boolean;
     remaining?: number;
   } | null>(null);
@@ -61,7 +63,7 @@ function DashboardContent() {
     <div className="max-w-3xl mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <span className="text-stone-600">{user.email}</span>
+          <span className="text-stone-600">{user.identity ?? user.email ?? user.phone ?? ''}</span>
           {user.isPremium && (
             <span className="ml-2 text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded">
               Premium

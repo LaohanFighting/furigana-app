@@ -1,12 +1,11 @@
 /**
  * POST /api/auth/send-code
- * 请求体: { email: string }
- * 向邮箱发送 6 位验证码，用于登录/注册
+ * 请求体: { email?: string } 或 { phone?: string }
+ * 向邮箱或手机发送 6 位验证码
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { nanoid } from 'nanoid';
 import nodemailer from 'nodemailer';
 
 const CODE_EXPIRE_MINUTES = 10;
@@ -21,13 +20,30 @@ function generateCode(): string {
   return code;
 }
 
+/** 规范化手机号：仅保留数字，至少 10 位 */
+function normalizePhone(raw: string): string {
+  const digits = raw.replace(/\D/g, '');
+  return digits.length >= 10 ? digits : '';
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    const phone = normalizePhone(typeof body.phone === 'string' ? body.phone : '');
+
+    const byEmail = !!email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    const byPhone = phone.length >= 10;
+
+    if (!byEmail && !byPhone) {
       return NextResponse.json(
-        { success: false, error: 'Invalid email' },
+        { success: false, error: 'Invalid email or phone' },
+        { status: 400 }
+      );
+    }
+    if (byEmail && byPhone) {
+      return NextResponse.json(
+        { success: false, error: 'Provide either email or phone, not both' },
         { status: 400 }
       );
     }
@@ -35,40 +51,52 @@ export async function POST(request: NextRequest) {
     const code = generateCode();
     const expiresAt = new Date(Date.now() + CODE_EXPIRE_MINUTES * 60 * 1000);
 
-    const created = await prisma.verification.create({
-      data: { email, code, expiresAt },
-    });
-    await prisma.verification.deleteMany({
-      where: { email, id: { not: created.id } },
-    });
-
-    const host = process.env.SMTP_HOST;
-    const user = process.env.SMTP_USER;
-    const pass = process.env.SMTP_PASS;
-    const port = Number(process.env.SMTP_PORT) || 587;
-    const secure = port === 465;
-
-    if (host && user && pass) {
-      const transporter = nodemailer.createTransport({
-        host,
-        port,
-        secure,
-        auth: { user, pass },
-        connectionTimeout: 15000,
-        greetingTimeout: 15000,
+    if (byEmail) {
+      const created = await prisma.verification.create({
+        data: { email, code, expiresAt },
       });
-      await transporter.sendMail({
-        from: process.env.SMTP_FROM || user,
-        to: email,
-        subject: 'Your verification code - Furigana',
-        text: `Your code is: ${code}. It expires in ${CODE_EXPIRE_MINUTES} minutes.`,
-        html: `<p>Your verification code is: <strong>${code}</strong>.</p><p>It expires in ${CODE_EXPIRE_MINUTES} minutes.</p>`,
+      await prisma.verification.deleteMany({
+        where: { email, id: { not: created.id } },
       });
-    } else {
-      if (host || user) {
-        console.warn('[send-code] SMTP partially configured; missing:', !host ? 'SMTP_HOST' : !user ? 'SMTP_USER' : 'SMTP_PASS');
+
+      const host = process.env.SMTP_HOST;
+      const user = process.env.SMTP_USER;
+      const pass = process.env.SMTP_PASS;
+      const port = Number(process.env.SMTP_PORT) || 587;
+      const secure = port === 465;
+
+      if (host && user && pass) {
+        const transporter = nodemailer.createTransport({
+          host,
+          port,
+          secure,
+          auth: { user, pass },
+          connectionTimeout: 15000,
+          greetingTimeout: 15000,
+        });
+        await transporter.sendMail({
+          from: process.env.SMTP_FROM || user,
+          to: email,
+          subject: 'Your verification code - Furigana',
+          text: `Your code is: ${code}. It expires in ${CODE_EXPIRE_MINUTES} minutes.`,
+          html: `<p>Your verification code is: <strong>${code}</strong>.</p><p>It expires in ${CODE_EXPIRE_MINUTES} minutes.</p>`,
+        });
+      } else {
+        if (host || user) {
+          console.warn('[send-code] SMTP partially configured; missing:', !host ? 'SMTP_HOST' : !user ? 'SMTP_USER' : 'SMTP_PASS');
+        }
+        console.log('[dev] Verification code for', email, ':', code);
       }
-      console.log('[dev] Verification code for', email, ':', code);
+    } else {
+      const created = await prisma.verification.create({
+        data: { phone, code, expiresAt },
+      });
+      await prisma.verification.deleteMany({
+        where: { phone, id: { not: created.id } },
+      });
+
+      // 生产环境可配置 SMS_PROVIDER（如 aliyun）、SMS_SIGN_NAME、SMS_TEMPLATE_CODE 等发送短信
+      console.log('[dev] SMS code for', phone, ':', code);
     }
 
     return NextResponse.json({ success: true });

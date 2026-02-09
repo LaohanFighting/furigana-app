@@ -1,7 +1,7 @@
 /**
  * POST /api/auth/verify
- * 请求体: { email: string, code: string }
- * 验证通过则创建/登录用户，设置 session cookie，返回用户信息
+ * 请求体: { email?: string, phone?: string, code: string }
+ * 验证通过则创建/登录用户，设置 session cookie
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -9,20 +9,36 @@ import { prisma } from '@/lib/db';
 import { createSessionToken, COOKIE_NAME } from '@/lib/auth-server';
 import { getUsageAndLimit } from '@/lib/auth-server';
 
+function normalizePhone(raw: string): string {
+  const digits = raw.replace(/\D/g, '');
+  return digits.length >= 10 ? digits : '';
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+    const phone = normalizePhone(typeof body.phone === 'string' ? body.phone : '');
     const code = typeof body.code === 'string' ? body.code.trim() : '';
-    if (!email || !code) {
+
+    const byEmail = !!email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    const byPhone = !!phone;
+
+    if (!code || (!byEmail && !byPhone)) {
       return NextResponse.json(
-        { success: false, error: 'Email and code required' },
+        { success: false, error: 'Email or phone and code required' },
+        { status: 400 }
+      );
+    }
+    if (byEmail && byPhone) {
+      return NextResponse.json(
+        { success: false, error: 'Provide either email or phone, not both' },
         { status: 400 }
       );
     }
 
     const verification = await prisma.verification.findFirst({
-      where: { email, code },
+      where: byEmail ? { email, code } : { phone, code },
       orderBy: { createdAt: 'desc' },
     });
     if (!verification || verification.expiresAt < new Date()) {
@@ -32,10 +48,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let user = await prisma.user.findUnique({ where: { email } });
+    let user = byEmail
+      ? await prisma.user.findUnique({ where: { email } })
+      : await prisma.user.findUnique({ where: { phone } });
     if (!user) {
       user = await prisma.user.create({
-        data: { email },
+        data: byEmail ? { email } : { phone },
       });
     }
 
@@ -43,10 +61,13 @@ export async function POST(request: NextRequest) {
 
     const token = await createSessionToken(user.id);
     const { used, limit } = await getUsageAndLimit(user);
+    const identity = user.email ?? user.phone ?? '';
 
     const response = NextResponse.json({
       success: true,
-      email: user.email,
+      email: user.email ?? undefined,
+      phone: user.phone ?? undefined,
+      identity,
       isPremium: user.isPremium,
       remaining: user.isPremium ? undefined : Math.max(0, limit - used),
     });

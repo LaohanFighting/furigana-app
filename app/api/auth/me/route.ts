@@ -14,7 +14,9 @@ export async function GET(request: NextRequest) {
   const { used, limit } = await getUsageAndLimit(user);
   return NextResponse.json({
     loggedIn: true,
-    email: user.email,
+    email: user.email ?? undefined,
+    phone: user.phone ?? undefined,
+    identity: user.email ?? user.phone ?? '',
     isPremium: user.isPremium,
     remaining: user.isPremium ? undefined : Math.max(0, limit - used),
   });
