@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import nodemailer from 'nodemailer';
+import { sendSms } from '@/lib/sms-aliyun';
 
 const CODE_EXPIRE_MINUTES = 10;
 const CODE_LENGTH = 6;
@@ -95,8 +96,13 @@ export async function POST(request: NextRequest) {
         where: { phone, id: { not: created.id } },
       });
 
-      // 生产环境可配置 SMS_PROVIDER（如 aliyun）、SMS_SIGN_NAME、SMS_TEMPLATE_CODE 等发送短信
-      console.log('[dev] SMS code for', phone, ':', code);
+      // 发送短信验证码（如果配置了阿里云短信服务）
+      try {
+        await sendSms({ phone, code });
+      } catch (e) {
+        // 发送失败时，验证码仍会记录在数据库中，用户可以从日志查看（开发模式）
+        console.error('[send-code] SMS send failed, code logged:', code);
+      }
     }
 
     return NextResponse.json({ success: true });
