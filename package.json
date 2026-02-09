@@ -19,9 +19,7 @@
     "nanoid": "^5.0.9",
     "nodemailer": "^6.9.16",
     "jose": "^5.9.6",
-    "@alicloud/dysmsapi20170525": "^2.0.24",
-    "@alicloud/openapi-client": "^0.4.1",
-    "@alicloud/tea-util": "^0.2.21"
+    "@alicloud/pop-core": "^1.7.10"
   },
   "devDependencies": {
     "@types/node": "^22.9.0",

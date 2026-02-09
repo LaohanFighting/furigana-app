@@ -26,35 +26,33 @@ export async function sendSms({ phone, code }: SendSmsOptions): Promise<void> {
   }
 
   try {
-    // 动态导入阿里云 SDK（避免在未配置时增加 bundle 大小）
-    const Dysmsapi20170525 = (await import('@alicloud/dysmsapi20170525')).default;
-    const OpenApi = (await import('@alicloud/openapi-client')).default;
-    const Util = (await import('@alicloud/tea-util')).default;
+    // 使用 @alicloud/pop-core（更稳定的 SDK）
+    const RPCClient = (await import('@alicloud/pop-core')).default;
 
-    // 创建客户端
-    const config = new OpenApi.Config({
+    const client = new RPCClient({
       accessKeyId,
       accessKeySecret,
+      endpoint: 'https://dysmsapi.aliyuncs.com',
+      apiVersion: '2017-05-25',
     });
-    config.endpoint = 'dysmsapi.aliyuncs.com';
-    const client = new Dysmsapi20170525(config);
 
     // 发送短信
-    const sendSmsRequest = new Dysmsapi20170525.SendSmsRequest({
-      phoneNumbers: phone,
-      signName,
-      templateCode,
-      templateParam: JSON.stringify({ code }),
+    const params = {
+      PhoneNumbers: phone,
+      SignName: signName,
+      TemplateCode: templateCode,
+      TemplateParam: JSON.stringify({ code }),
+    };
+
+    const response = await client.request('SendSms', params, {
+      method: 'POST',
     });
 
-    const runtime = new Util.RuntimeOptions({});
-    const response = await client.sendSmsWithOptions(sendSmsRequest, runtime);
-
-    if (response.body.code === 'OK') {
+    if (response.Code === 'OK') {
       console.log('[sms] SMS sent successfully to', phone);
     } else {
-      console.error('[sms] SMS send failed:', response.body.message, 'Code:', response.body.code);
-      throw new Error(`SMS send failed: ${response.body.message}`);
+      console.error('[sms] SMS send failed:', response.Message, 'Code:', response.Code);
+      throw new Error(`SMS send failed: ${response.Message}`);
     }
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
