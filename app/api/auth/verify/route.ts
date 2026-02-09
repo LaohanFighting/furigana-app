@@ -6,8 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { createSessionToken, COOKIE_NAME } from '@/lib/auth-server';
-import { getUsageAndLimit } from '@/lib/auth-server';
+import { createSessionToken, COOKIE_NAME, getUsageAndLimit, isPremiumUser } from '@/lib/auth-server';
 
 function normalizePhone(raw: string): string {
   const digits = raw.replace(/\D/g, '');
@@ -62,14 +61,15 @@ export async function POST(request: NextRequest) {
     const token = await createSessionToken(user.id);
     const { used, limit } = await getUsageAndLimit(user);
     const identity = user.email ?? user.phone ?? '';
+    const isPremium = isPremiumUser(user);
 
     const response = NextResponse.json({
       success: true,
       email: user.email ?? undefined,
       phone: user.phone ?? undefined,
       identity,
-      isPremium: user.isPremium,
-      remaining: user.isPremium ? undefined : Math.max(0, limit - used),
+      isPremium,
+      remaining: isPremium ? undefined : Math.max(0, limit - used),
     });
     response.cookies.set(COOKIE_NAME, token, {
       httpOnly: true,

@@ -10,6 +10,17 @@ import type { User } from '@prisma/client';
 const COOKIE_NAME = 'furigana_session';
 const FREE_TOTAL_LIMIT = 3; /* 免费用户总共使用次数限制（不重置） */
 
+/**
+ * 检查用户是否是有效的 Premium 用户
+ * 优先检查 premiumExpiresAt，如果不存在则向后兼容 isPremium
+ */
+export function isPremiumUser(user: User): boolean {
+  const now = new Date();
+  const isPremiumActive = user.premiumExpiresAt && user.premiumExpiresAt > now;
+  // 向后兼容：如果 premiumExpiresAt 不存在但 isPremium 为 true，也视为 Premium
+  return isPremiumActive || (user.isPremium && !user.premiumExpiresAt);
+}
+
 function getSecret(): Uint8Array {
   const secret = process.env.SESSION_SECRET;
   if (!secret || secret.length < 32) {
@@ -55,7 +66,7 @@ export async function getUsageAndLimit(user: User): Promise<{
   limit: number;
   resetAt: Date | null;
 }> {
-  if (user.isPremium) {
+  if (isPremiumUser(user)) {
     return { used: 0, limit: Number.MAX_SAFE_INTEGER, resetAt: null };
   }
   // 总共限制：使用 dailyUsed 字段存储总使用次数，不重置

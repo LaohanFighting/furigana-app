@@ -58,7 +58,8 @@ function UpgradeContent() {
   return (
     <div className="max-w-md mx-auto px-4 py-12">
       <h1 className="text-xl font-semibold mb-2">{t(locale, 'upgrade')}</h1>
-      <p className="text-stone-600 mb-6">一次付费，永久无限次使用振假名标注。</p>
+      <p className="text-stone-600 mb-2">{t(locale, 'upgrade.monthly_price')}</p>
+      <p className="text-sm text-stone-500 mb-6">{t(locale, 'upgrade.monthly_desc')}</p>
       <div className="flex gap-4 mb-6">
         <button
           onClick={() => setChannel('alipay')}

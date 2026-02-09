@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getSessionUser, getUsageAndLimit } from '@/lib/auth-server';
+import { getSessionUser, getUsageAndLimit, isPremiumUser } from '@/lib/auth-server';
 
 export async function GET(request: NextRequest) {
   const user = await getSessionUser(request);
@@ -12,12 +12,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ loggedIn: false }, { status: 200 });
   }
   const { used, limit } = await getUsageAndLimit(user);
+  const isPremium = isPremiumUser(user);
   return NextResponse.json({
     loggedIn: true,
     email: user.email ?? undefined,
     phone: user.phone ?? undefined,
     identity: user.email ?? user.phone ?? '',
-    isPremium: user.isPremium,
-    remaining: user.isPremium ? undefined : Math.max(0, limit - used),
+    isPremium,
+    remaining: isPremium ? undefined : Math.max(0, limit - used),
   });
 }

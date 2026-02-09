@@ -98,7 +98,7 @@ export async function createPaymentOrder(
     version: '1.1',
     trade_order_id: payOrderId,
     total_fee: String(PREMIUM_AMOUNT_CENTS / 100), // 虎皮椒使用元为单位
-    title: 'Furigana Premium - 无限次使用',
+    title: 'Furigana Premium - 每月无限次使用',
     notify_url: notifyUrl,
     return_url: returnUrl,
     type: channel === 'alipay' ? 'alipay' : 'wechat', // alipay 或 wechat
@@ -223,8 +223,12 @@ export async function handlePaymentNotify(
     return { success: true, body: 'success' };
   }
 
-  // 更新订单状态和用户 Premium 状态
+  // 更新订单状态和用户 Premium 状态（每月订阅）
   try {
+    const now = new Date();
+    // 每月订阅：当前时间 + 30 天
+    const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    
     await prisma.$transaction([
       prisma.order.update({
         where: { id: order.id },
@@ -232,7 +236,10 @@ export async function handlePaymentNotify(
       }),
       prisma.user.update({
         where: { id: order.userId },
-        data: { isPremium: true },
+        data: { 
+          isPremium: true,
+          premiumExpiresAt: expiresAt,
+        },
       }),
     ]);
 
