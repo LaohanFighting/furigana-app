@@ -46,7 +46,12 @@ export async function sendSms({ phone, code }: SendSmsOptions): Promise<void> {
 
     const response = await client.request('SendSms', params, {
       method: 'POST',
-    });
+    }) as {
+      Code: string;
+      Message: string;
+      RequestId?: string;
+      BizId?: string;
+    };
 
     if (response.Code === 'OK') {
       console.log('[sms] SMS sent successfully to', phone);
