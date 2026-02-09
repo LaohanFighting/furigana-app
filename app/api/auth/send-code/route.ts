@@ -105,7 +105,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ success: true });
+    // 开发模式：如果未配置 SMTP/短信，返回验证码供前端显示（仅开发环境）
+    const isDev = process.env.NODE_ENV !== 'production';
+    const smtpConfigured = process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS;
+    const smsConfigured = process.env.ALIYUN_ACCESS_KEY_ID && process.env.ALIYUN_ACCESS_KEY_SECRET && process.env.SMS_SIGN_NAME && process.env.SMS_TEMPLATE_CODE;
+    
+    return NextResponse.json({ 
+      success: true,
+      // 仅在开发模式且未配置邮件/短信时返回验证码
+      devCode: (isDev && !smtpConfigured && !smsConfigured) ? code : undefined
+    });
   } catch (e) {
     const err = e instanceof Error ? e : new Error(String(e));
     console.error('send-code error:', err.message, err);

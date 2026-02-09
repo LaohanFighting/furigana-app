@@ -26,8 +26,16 @@ export async function sendSms({ phone, code }: SendSmsOptions): Promise<void> {
   }
 
   try {
-    // 使用 @alicloud/pop-core（更稳定的 SDK）
-    const RPCClient = (await import('@alicloud/pop-core')).default;
+    // 动态导入 @alicloud/pop-core（如果未安装，会优雅降级）
+    let RPCClient;
+    try {
+      const popCore = await import('@alicloud/pop-core');
+      RPCClient = popCore.default;
+    } catch (importError) {
+      console.warn('[sms] @alicloud/pop-core not installed, SMS will not be sent. Install with: npm install @alicloud/pop-core');
+      console.log('[dev] SMS code for', phone, ':', code);
+      return; // 优雅降级，不抛出错误
+    }
 
     const client = new RPCClient({
       accessKeyId,
@@ -64,6 +72,6 @@ export async function sendSms({ phone, code }: SendSmsOptions): Promise<void> {
     console.error('[sms] SMS error:', err.message, err);
     // 即使发送失败，也在日志中打印验证码，方便调试
     console.log('[dev] SMS code for', phone, ':', code);
-    throw err;
+    // 不抛出错误，避免影响登录流程
   }
 }

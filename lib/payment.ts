@@ -1,27 +1,62 @@
 /**
- * 支付接口设计示例（支持支付宝/微信，中国聚合支付）
- * 以虎皮椒 / PayJS / 易支付 等聚合平台为例，不含真实密钥
+ * 虎皮椒（XunhuPay）支付接口实现
+ * 支持微信支付和支付宝支付
+ * 文档：https://www.xunhupay.com/doc/api/pay.html
  */
 
+import crypto from 'crypto';
 import { nanoid } from 'nanoid';
 import { prisma } from '@/lib/db';
 
-const PREMIUM_AMOUNT_CENTS = 990; // 9.9 元 = 990 分（若平台按元则改为 9.9）
+const PREMIUM_AMOUNT_CENTS = 990; // 9.9 元 = 990 分
 
 export interface CreateOrderResult {
   success: boolean;
   orderId?: string;       // 我方订单 id（Prisma Order.id）
   payOrderId?: string;    // 支付平台订单号，用于回调
   payUrl?: string;        // 前端跳转支付的 URL（支付宝/微信）
-  qrCode?: string;        // 部分平台返回二维码 content
+  qrCode?: string;        // 支付二维码链接
   error?: string;
 }
 
 /**
- * 创建支付订单
+ * 虎皮椒签名算法
+ * 1. 将所有非空参数按照参数名ASCII码从小到大排序（字典序）
+ * 2. 使用URL键值对格式拼接成字符串（key1=value1&key2=value2...）
+ * 3. 在字符串末尾拼接APPSECRET（秘钥）
+ * 4. 对结果进行MD5运算，得到32位小写hash值
+ * 
+ * 规则：
+ * - 参数值为空不参与签名
+ * - 参数名区分大小写
+ * - hash参数本身不参与签名
+ */
+function signXunhuPay(params: Record<string, string>, secret: string): string {
+  // 过滤空值和 hash 字段，然后排序
+  const filteredParams: Record<string, string> = {};
+  for (const [k, v] of Object.entries(params)) {
+    if (k !== 'hash' && v !== null && v !== undefined && v !== '') {
+      filteredParams[k] = String(v);
+    }
+  }
+
+  // 按 key 排序
+  const sortedKeys = Object.keys(filteredParams).sort();
+  
+  // 拼接成 key=value&key=value 格式
+  const signStr = sortedKeys
+    .map(k => `${k}=${filteredParams[k]}`)
+    .join('&') + secret;
+
+  // MD5 加密，32位小写
+  return crypto.createHash('md5').update(signStr).digest('hex');
+}
+
+/**
+ * 创建支付订单（虎皮椒）
  * 1. 在 DB 创建 Order 记录 status=pending
- * 2. 调用聚合平台 API 生成支付链接/二维码
- * 3. 返回 payUrl 给前端跳转
+ * 2. 调用虎皮椒 API 生成支付链接
+ * 3. 返回支付链接给前端
  */
 export async function createPaymentOrder(
   userId: string,
@@ -38,9 +73,9 @@ export async function createPaymentOrder(
     },
   });
 
-  const apiUrl = process.env.PAYMENT_API_URL;
-  const appId = process.env.PAYMENT_APPID;
-  const key = process.env.PAYMENT_KEY;
+  const apiUrl = process.env.PAYMENT_API_URL || 'https://api.xunhupay.com/payment/do.html';
+  const appid = process.env.PAYMENT_APPID; // 虎皮椒使用 appid
+  const secret = process.env.PAYMENT_KEY; // 虎皮椒使用 APPSECRET
   const notifyUrl = process.env.PAYMENT_NOTIFY_URL;
   const returnUrl = process.env.PAYMENT_RETURN_URL;
 
@@ -48,44 +83,65 @@ export async function createPaymentOrder(
     throw new Error('Missing payment callback environment variables');
   }
 
-  if (!apiUrl || !appId || !key) {
+  if (!appid || !secret) {
     return {
       success: true,
       orderId: order.id,
       payOrderId: order.orderId,
       payUrl: undefined,
-      error: 'Payment not configured; use env PAYMENT_*',
+      error: 'Payment not configured; set PAYMENT_APPID and PAYMENT_KEY',
     };
   }
 
-  // 示例：虎皮椒风格参数（具体以所选平台文档为准）
+  // 虎皮椒支付参数
   const params: Record<string, string> = {
-    out_trade_no: payOrderId,
-    total_fee: String(PREMIUM_AMOUNT_CENTS / 100), // 元
-    type: channel === 'alipay' ? 'alipay' : 'wechat',
+    version: '1.1',
+    trade_order_id: payOrderId,
+    total_fee: String(PREMIUM_AMOUNT_CENTS / 100), // 虎皮椒使用元为单位
+    title: 'Furigana Premium - 无限次使用',
     notify_url: notifyUrl,
     return_url: returnUrl,
-    name: 'Furigana Premium',
+    type: channel === 'alipay' ? 'alipay' : 'wechat', // alipay 或 wechat
+    appid: appid,
   };
-  // 签名示例（MD5(appId+key+params) 等，按平台文档）
-  // params.sign = signParams(params, key);
+
+  // 计算签名
+  const hash = signXunhuPay(params, secret);
+  params.hash = hash;
 
   try {
+    // 虎皮椒使用 POST 方式，参数可以是 form-data 或 JSON
+    // 根据文档，使用 form-data 格式
+    const formData = new URLSearchParams();
+    for (const [k, v] of Object.entries(params)) {
+      formData.append(k, v);
+    }
+
     const res = await fetch(apiUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...params, appid: appId }),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: formData.toString(),
     });
+
     const data = await res.json();
-    const payUrl = data.url || data.pay_url || data.code_url;
-    return {
-      success: true,
-      orderId: order.id,
-      payOrderId: order.orderId,
-      payUrl: payUrl || undefined,
-      qrCode: data.qr_code || undefined,
-    };
+
+    // 虎皮椒返回格式：{ errcode: 0, errmsg: "success", url: "...", hash: "..." }
+    if (data.errcode === 0 && data.url) {
+      return {
+        success: true,
+        orderId: order.id,
+        payOrderId: order.orderId,
+        payUrl: data.url, // 支付链接
+        qrCode: data.url, // 虎皮椒返回的 url 就是支付链接
+      };
+    } else {
+      return {
+        success: false,
+        error: data.errmsg || 'Payment request failed',
+      };
+    }
   } catch (e) {
+    console.error('[payment] XunhuPay create order error:', e);
     return {
       success: false,
       error: e instanceof Error ? e.message : 'Payment request failed',
@@ -94,47 +150,100 @@ export async function createPaymentOrder(
 }
 
 /**
- * 支付回调（Notify）：支付平台 POST 到 /api/payment/callback
+ * 虎皮椒支付回调处理
  * 1. 验签
- * 2. 根据 out_trade_no 找到 Order，若 status 仍为 pending 则更新为 paid
+ * 2. 根据 trade_order_id 找到 Order，若 status 仍为 pending 则更新为 paid
  * 3. 将对应用户 isPremium 设为 true
- * 4. 返回 success 字符串给平台
+ * 4. 返回 success 字符串给虎皮椒
  */
 export async function handlePaymentNotify(
   body: Record<string, unknown>,
   rawBody: string,
   signatureHeader: string | null
 ): Promise<{ success: boolean; body?: string }> {
-  // 验签逻辑（示例，按平台文档实现）
-  // if (!verifySign(rawBody, signatureHeader)) return { success: false, body: 'invalid sign' };
-
-  const outTradeNo = body.out_trade_no || body.order_id;
-  const tradeStatus = body.trade_status ?? body.status;
-  if (typeof outTradeNo !== 'string') {
-    return { success: false, body: 'missing out_trade_no' };
+  const secret = process.env.PAYMENT_KEY;
+  if (!secret) {
+    console.error('[payment] Missing PAYMENT_KEY');
+    return { success: false, body: 'missing secret' };
   }
-  if (String(tradeStatus).toLowerCase() !== 'success' && String(tradeStatus) !== 'paid') {
+
+  // 虎皮椒回调参数
+  const hash = body.hash as string;
+  if (!hash) {
+    console.error('[payment] Missing hash in callback');
+    return { success: false, body: 'missing hash' };
+  }
+
+  // 虎皮椒验签：排除 hash 字段，其他参数排序后签名
+  const signParams: Record<string, string> = {};
+  for (const [k, v] of Object.entries(body)) {
+    if (k !== 'hash' && v !== null && v !== undefined && v !== '') {
+      signParams[k] = String(v);
+    }
+  }
+
+  const calculatedHash = signXunhuPay(signParams, secret);
+
+  if (calculatedHash !== hash.toLowerCase()) {
+    console.error('[payment] Invalid signature:', {
+      calculatedHash,
+      receivedHash: hash,
+      params: signParams,
+    });
+    return { success: false, body: 'invalid hash' };
+  }
+
+  // 虎皮椒回调参数
+  const tradeOrderId = body.trade_order_id as string;
+  const status = body.status as string;
+
+  if (!tradeOrderId) {
+    return { success: false, body: 'missing trade_order_id' };
+  }
+
+  // 虎皮椒: status === 'OD' 表示支付成功（Order Done）
+  if (status !== 'OD') {
+    console.log('[payment] Payment not successful, status:', status);
     return { success: false, body: 'not paid' };
   }
 
   const order = await prisma.order.findUnique({
-    where: { orderId: outTradeNo },
+    where: { orderId: tradeOrderId },
     include: { user: true },
   });
-  if (!order || order.status !== 'pending') {
-    return { success: true, body: 'ok' }; // 已处理过也返回 ok
+
+  if (!order) {
+    console.error('[payment] Order not found:', tradeOrderId);
+    return { success: false, body: 'order not found' };
   }
 
-  await prisma.$transaction([
-    prisma.order.update({
-      where: { id: order.id },
-      data: { status: 'paid' },
-    }),
-    prisma.user.update({
-      where: { id: order.userId },
-      data: { isPremium: true },
-    }),
-  ]);
+  if (order.status !== 'pending') {
+    // 已处理过，返回 success 避免虎皮椒重复通知
+    console.log('[payment] Order already processed:', tradeOrderId);
+    return { success: true, body: 'success' };
+  }
 
-  return { success: true, body: 'success' };
+  // 更新订单状态和用户 Premium 状态
+  try {
+    await prisma.$transaction([
+      prisma.order.update({
+        where: { id: order.id },
+        data: { status: 'paid' },
+      }),
+      prisma.user.update({
+        where: { id: order.userId },
+        data: { isPremium: true },
+      }),
+    ]);
+
+    console.log('[payment] Order paid and user upgraded:', {
+      orderId: order.id,
+      userId: order.userId,
+    });
+
+    return { success: true, body: 'success' };
+  } catch (e) {
+    console.error('[payment] Transaction failed:', e);
+    return { success: false, body: 'transaction failed' };
+  }
 }

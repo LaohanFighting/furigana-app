@@ -31,6 +31,7 @@ function LoginContent() {
   const [step, setStep] = useState<'input' | 'code'>('input');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [devCode, setDevCode] = useState<string | undefined>(undefined);
 
   async function sendCode(e: React.FormEvent) {
     e.preventDefault();
@@ -55,6 +56,11 @@ function LoginContent() {
       if (!res.ok) {
         setError(data.error || 'Failed');
         return;
+      }
+      // 开发模式下，如果返回了验证码，保存并自动填入
+      if (data.devCode) {
+        setDevCode(data.devCode);
+        setCode(data.devCode);
       }
       setStep('code');
     } catch (e) {
@@ -158,6 +164,12 @@ function LoginContent() {
           <p className="text-sm text-stone-600">
             {t(locale, 'code_sent_to')} {identity}
           </p>
+          {devCode && (
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <p className="text-xs text-amber-800 font-medium mb-1">开发模式 - 验证码已自动填入</p>
+              <p className="text-sm text-amber-700">验证码：<strong>{devCode}</strong></p>
+            </div>
+          )}
           <div>
             <label className="block text-sm text-stone-600 mb-1">{t(locale, 'code')}</label>
             <input

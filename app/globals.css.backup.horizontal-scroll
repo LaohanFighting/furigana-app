@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ========== 日语振假名输出：整段在容器边缘换行，ruby 内部不拆行 ========== */
+
+/* 外层：块级容器，允许子内容在宽度内自然换行 */
+.furigana-result {
+  display: block;
+  writing-mode: horizontal-tb;
+}
+
+/* 整段文本层：允许在容器边缘自动换行，禁止对整段使用 nowrap */
+.furigana-result .furigana-result-inner {
+  display: block;
+  white-space: normal;
+  line-height: 2.2;
+  word-break: normal;
+  overflow-wrap: anywhere;
+}
+
+/* 每个 ruby 外包一层可断行 inline 容器；ruby 为 atomic inline，ZWSP 无效，必须用结构断行 */
+.furigana-result .rb {
+  display: inline;
+  white-space: normal;
+}
+.furigana-result .rb ruby {
+  white-space: nowrap;
+}
+
+/* 仅限制 ruby 内部不可拆行；换行只发生在 .rb 与 .rb、.rb 与普通文本之间 */
+.furigana-result ruby {
+  display: ruby;
+  ruby-position: over;
+  -webkit-ruby-position: over;
+  white-space: nowrap;
+}
+
+/* rt 不设置 display，只调字体 */
+.furigana-result rt {
+  font-size: 0.55em;
+  line-height: 1;
+  color: #666;
+}
+
+/* 生成结果横向滚动区：可左右拖动查看，不改变内容生成逻辑 */
+.furigana-result-scroll {
+  max-height: 12em;
+  -webkit-overflow-scrolling: touch;
+}
+.furigana-result-scroll .furigana-result {
+  display: block;
+}
+/* 滚动区内不换行，使内容横向溢出，才能出现横向滚动条/滑块 */
+.furigana-result-scroll .furigana-result-inner {
+  white-space: nowrap;
+  display: inline-block;
+}
+
+body {
+  @apply antialiased bg-stone-50 text-stone-900;
+}
