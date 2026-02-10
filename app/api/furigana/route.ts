@@ -7,7 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { textToFuriganaHtml } from '@/lib/furigana';
-import { getUserIdFromRequest, getUsageAndLimit, isPremiumUser } from '@/lib/auth-server';
+import { getUserIdFromRequest, getUsageAndLimit, isPremiumUser, hasAccess } from '@/lib/auth-server';
 import { prisma } from '@/lib/db';
 
 const FREE_TOTAL_LIMIT = 3; /* 免费用户总共使用次数限制（不重置） */
@@ -36,6 +36,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { success: false, error: 'User not found', html: '' },
         { status: 401 }
+      );
+    }
+
+    if (!hasAccess(user)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Access not approved. Please request access and wait for approval.',
+          html: '',
+        },
+        { status: 403 }
       );
     }
 

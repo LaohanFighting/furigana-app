@@ -83,3 +83,14 @@ npm run dev
 - [ ] 振假名接口登录后可调通
 - [ ] 支付回调 URL 已配置并验签
 - [ ] Terms / Privacy / Refund 可访问，联系邮箱正确
+
+## 7. 设置首个管理员（权限审批功能）
+
+使用权限需「用户申请 → 管理员审批」。首个管理员需在数据库中手动指定：
+
+- **方式一（推荐）**：用 Prisma Studio 或 SQL 将某用户的 `isAdmin` 设为 `true`。
+  - 例如已知邮箱：`UPDATE "User" SET "isAdmin" = true WHERE email = 'admin@example.com';`
+- **方式二**：本地执行一次性脚本：
+  - `npx prisma studio` 打开后找到对应用户，勾选 `isAdmin` 并保存。
+
+管理员登录后访问 **/dashboard/admin** 可查看待审批用户并进行通过/拒绝操作。

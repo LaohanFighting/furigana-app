@@ -20,5 +20,8 @@ export async function GET(request: NextRequest) {
     identity: user.email ?? user.phone ?? '',
     isPremium,
     remaining: isPremium ? undefined : Math.max(0, limit - used),
+    accessStatus: user.accessStatus ?? null,
+    accessRejectReason: user.accessRejectReason ?? null,
+    isAdmin: user.isAdmin ?? false,
   });
 }

@@ -62,6 +62,19 @@ export async function createPaymentOrder(
   userId: string,
   channel: 'alipay' | 'wechat'
 ): Promise<CreateOrderResult> {
+  const apiUrl = process.env.PAYMENT_API_URL || 'https://api.xunhupay.com/payment/do.html';
+  const appid = process.env.PAYMENT_APPID; // 虎皮椒使用 appid（如果使用中转服务器，这个不需要）
+  const secret = process.env.PAYMENT_KEY; // 虎皮椒使用 APPSECRET（如果使用中转服务器，这个不需要）
+  const notifyUrl = process.env.PAYMENT_NOTIFY_URL;
+  const returnUrl = process.env.PAYMENT_RETURN_URL;
+
+  if (!returnUrl || !notifyUrl) {
+    return {
+      success: false,
+      error: 'Missing PAYMENT_NOTIFY_URL or PAYMENT_RETURN_URL',
+    };
+  }
+
   const payOrderId = `F${Date.now()}${nanoid(8)}`;
   const order = await prisma.order.create({
     data: {
@@ -73,79 +86,111 @@ export async function createPaymentOrder(
     },
   });
 
-  const apiUrl = process.env.PAYMENT_API_URL || 'https://api.xunhupay.com/payment/do.html';
-  const appid = process.env.PAYMENT_APPID; // 虎皮椒使用 appid
-  const secret = process.env.PAYMENT_KEY; // 虎皮椒使用 APPSECRET
-  const notifyUrl = process.env.PAYMENT_NOTIFY_URL;
-  const returnUrl = process.env.PAYMENT_RETURN_URL;
+  // 判断是否使用中转服务器（如果 PAYMENT_API_URL 包含 /xunhu/create，说明是中转服务器）
+  const isProxyServer = apiUrl.includes('/xunhu/create') || apiUrl.includes('/xunhu');
 
-  if (!returnUrl || !notifyUrl) {
-    throw new Error('Missing payment callback environment variables');
-  }
+  if (isProxyServer) {
+    // 使用中转服务器：发送 JSON 格式，不需要签名（中转服务器会处理）
+    try {
+      const res = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          trade_order_id: payOrderId,
+          total_fee: String(PREMIUM_AMOUNT_CENTS / 100), // 元为单位，例如 "9.9"
+          title: 'Furigana Premium - 每月无限次使用',
+          notify_url: notifyUrl,
+          return_url: returnUrl,
+          channel,
+        }),
+      });
 
-  if (!appid || !secret) {
-    return {
-      success: true,
-      orderId: order.id,
-      payOrderId: order.orderId,
-      payUrl: undefined,
-      error: 'Payment not configured; set PAYMENT_APPID and PAYMENT_KEY',
-    };
-  }
+      const data = await res.json();
 
-  // 虎皮椒支付参数
-  const params: Record<string, string> = {
-    version: '1.1',
-    trade_order_id: payOrderId,
-    total_fee: String(PREMIUM_AMOUNT_CENTS / 100), // 虎皮椒使用元为单位
-    title: 'Furigana Premium - 每月无限次使用',
-    notify_url: notifyUrl,
-    return_url: returnUrl,
-    type: channel === 'alipay' ? 'alipay' : 'wechat', // alipay 或 wechat
-    appid: appid,
-  };
-
-  // 计算签名
-  const hash = signXunhuPay(params, secret);
-  params.hash = hash;
-
-  try {
-    // 虎皮椒使用 POST 方式，参数可以是 form-data 或 JSON
-    // 根据文档，使用 form-data 格式
-    const formData = new URLSearchParams();
-    for (const [k, v] of Object.entries(params)) {
-      formData.append(k, v);
-    }
-
-    const res = await fetch(apiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: formData.toString(),
-    });
-
-    const data = await res.json();
-
-    // 虎皮椒返回格式：{ errcode: 0, errmsg: "success", url: "...", hash: "..." }
-    if (data.errcode === 0 && data.url) {
-      return {
-        success: true,
-        orderId: order.id,
-        payOrderId: order.orderId,
-        payUrl: data.url, // 支付链接
-        qrCode: data.url, // 虎皮椒返回的 url 就是支付链接
-      };
-    } else {
+      if (data.success && data.payUrl) {
+        return {
+          success: true,
+          orderId: order.id,
+          payOrderId: order.orderId,
+          payUrl: data.payUrl,
+          qrCode: data.payUrl,
+        };
+      } else {
+        return {
+          success: false,
+          error: data.error || 'Proxy server returned error',
+        };
+      }
+    } catch (e) {
+      console.error('[payment] Proxy server error:', e);
       return {
         success: false,
-        error: data.errmsg || 'Payment request failed',
+        error: e instanceof Error ? e.message : 'Proxy server request failed',
       };
     }
-  } catch (e) {
-    console.error('[payment] XunhuPay create order error:', e);
-    return {
-      success: false,
-      error: e instanceof Error ? e.message : 'Payment request failed',
+  } else {
+    // 直接调用虎皮椒（旧方式，如果中转服务器不可用时可以回退）
+    if (!appid || !secret) {
+      return {
+        error: 'Payment not configured; set PAYMENT_APPID and PAYMENT_KEY, or use proxy server',
+        success: false,
+      };
+    }
+
+    // 虎皮椒支付参数
+    const params: Record<string, string> = {
+      version: '1.1',
+      trade_order_id: payOrderId,
+      total_fee: String(PREMIUM_AMOUNT_CENTS / 100), // 虎皮椒使用元为单位
+      title: 'Furigana Premium - 每月无限次使用',
+      notify_url: notifyUrl,
+      return_url: returnUrl,
+      type: channel === 'alipay' ? 'alipay' : 'wechat', // alipay 或 wechat
+      appid: appid,
     };
+
+    // 计算签名
+    const hash = signXunhuPay(params, secret);
+    params.hash = hash;
+
+    try {
+      // 虎皮椒使用 POST 方式，参数可以是 form-data 或 JSON
+      // 根据文档，使用 form-data 格式
+      const formData = new URLSearchParams();
+      for (const [k, v] of Object.entries(params)) {
+        formData.append(k, v);
+      }
+
+      const res = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: formData.toString(),
+      });
+
+      const data = await res.json();
+
+      // 虎皮椒返回格式：{ errcode: 0, errmsg: "success", url: "...", hash: "..." }
+      if (data.errcode === 0 && data.url) {
+        return {
+          success: true,
+          orderId: order.id,
+          payOrderId: order.orderId,
+          payUrl: data.url, // 支付链接
+          qrCode: data.url, // 虎皮椒返回的 url 就是支付链接
+        };
+      } else {
+        return {
+          success: false,
+          error: data.errmsg || 'Payment request failed',
+        };
+      }
+    } catch (e) {
+      console.error('[payment] XunhuPay create order error:', e);
+      return {
+        success: false,
+        error: e instanceof Error ? e.message : 'Payment request failed',
+      };
+    }
   }
 }
 

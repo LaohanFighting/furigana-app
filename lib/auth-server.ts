@@ -21,6 +21,17 @@ export function isPremiumUser(user: User): boolean {
   return isPremiumActive || (user.isPremium && !user.premiumExpiresAt);
 }
 
+/** 是否管理员（可审批他人） */
+export function isAdminUser(user: User): boolean {
+  return user.isAdmin === true;
+}
+
+/** 是否有权使用功能：已审批通过 或 管理员 */
+export function hasAccess(user: User): boolean {
+  if (user.isAdmin) return true;
+  return user.accessStatus === 'approved';
+}
+
 function getSecret(): Uint8Array {
   const secret = process.env.SESSION_SECRET;
   if (!secret || secret.length < 32) {
