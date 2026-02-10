@@ -194,7 +194,7 @@ const initial = getLocaleFromSearch();
 
 export default function AdminPage() {
   return (
-    <LocaleProvider initialLocale={initial}>
+    <LocaleProvider initial={initial}>
       <SyncLocaleFromUrl />
       <Suspense fallback={<div className="max-w-2xl mx-auto px-4 py-8 text-center">Loading…</div>}>
         <header className="border-b border-stone-200 bg-white">
