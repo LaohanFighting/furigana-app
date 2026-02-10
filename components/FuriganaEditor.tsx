@@ -24,6 +24,11 @@ export default function FuriganaEditor({
   const resultScrollRef = useRef<HTMLDivElement>(null);
   const [scrollLeft, setScrollLeft] = useState(0);
   const [scrollMax, setScrollMax] = useState(0);
+  const [zhTranslation, setZhTranslation] = useState('');
+  const [wordExplanation, setWordExplanation] = useState('');
+  const [isExplaining, setIsExplaining] = useState(false);
+  const [copyZhStatus, setCopyZhStatus] = useState<'idle' | 'ok' | 'fail'>('idle');
+  const [copyExplainStatus, setCopyExplainStatus] = useState<'idle' | 'ok' | 'fail'>('idle');
 
   async function convert() {
     if (!input.trim()) return;
@@ -46,6 +51,29 @@ export default function FuriganaEditor({
       if (typeof data.remaining === 'number' && onRemainingChange) {
         onRemainingChange(data.remaining);
       }
+      const inputText = input.trim();
+      setIsExplaining(true);
+      setZhTranslation('');
+      setWordExplanation('');
+      Promise.all([
+        fetch('/api/ai/translate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ text: inputText }),
+        }).then((r) => r.json()),
+        fetch('/api/ai/explain-words', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ text: inputText }),
+        }).then((r) => r.json()),
+      ])
+        .then(([tr, ex]) => {
+          if (tr.success && typeof tr.translation === 'string') setZhTranslation(tr.translation);
+          if (ex.success && typeof ex.explanation === 'string') setWordExplanation(ex.explanation);
+        })
+        .finally(() => setIsExplaining(false));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Network error');
     } finally {
@@ -138,6 +166,22 @@ export default function FuriganaEditor({
     }
   }
 
+  async function copyTextToClipboard(
+    text: string,
+    setStatus: (s: 'idle' | 'ok' | 'fail') => void
+  ) {
+    if (!text) return;
+    setStatus('idle');
+    try {
+      await navigator.clipboard.writeText(text);
+      setStatus('ok');
+      setTimeout(() => setStatus('idle'), 2000);
+    } catch {
+      setStatus('fail');
+      setTimeout(() => setStatus('idle'), 2000);
+    }
+  }
+
   return (
     <div className="space-y-4 max-w-2xl mx-auto">
       <div>
@@ -162,39 +206,84 @@ export default function FuriganaEditor({
       </div>
       {error && <p className="text-red-600 text-sm">{error}</p>}
       {html && (
-        <div>
-          <h3 className="text-sm font-medium text-stone-600 mb-1">{t(locale, 'output.title')}</h3>
-          {/* 可左右滚动的结果区 + 拖动滑块 */}
-          <div
-            ref={resultScrollRef}
-            onScroll={onResultScroll}
-            className="furigana-result-scroll overflow-x-auto overflow-y-hidden border border-stone-200 rounded-lg bg-white"
-          >
-            <div className="furigana-result min-w-min p-4 text-lg leading-relaxed break-words">
-              <span className="furigana-result-inner" dangerouslySetInnerHTML={{ __html: html }} />
+        <div className="space-y-4">
+          <div>
+            <h3 className="text-sm font-medium text-stone-600 mb-1">{t(locale, 'output.title')}</h3>
+            <div
+              ref={resultScrollRef}
+              onScroll={onResultScroll}
+              className="furigana-result-scroll overflow-x-auto overflow-y-hidden border border-stone-200 rounded-lg bg-white"
+            >
+              <div className="furigana-result min-w-min p-4 text-lg leading-relaxed break-words">
+                <span className="furigana-result-inner" dangerouslySetInnerHTML={{ __html: html }} />
+              </div>
+            </div>
+            {scrollMax > 0 && (
+              <div className="mt-2 flex items-center gap-2">
+                <span className="text-xs text-stone-500 whitespace-nowrap">左右滑动</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={scrollMax}
+                  value={scrollLeft}
+                  onChange={(e) => onSliderChange(Number(e.target.value))}
+                  className="flex-1 h-2 rounded-lg appearance-none bg-stone-200 accent-amber-600"
+                />
+              </div>
+            )}
+            <div className="mt-2">
+              <button
+                type="button"
+                onClick={copyResult}
+                className="px-3 py-1.5 text-sm border border-stone-300 rounded-lg hover:bg-stone-100"
+              >
+                {copyStatus === 'ok' ? t(locale, 'copy_done') : copyStatus === 'fail' ? t(locale, 'copy_fail') : t(locale, 'copy')}
+              </button>
             </div>
           </div>
-          {scrollMax > 0 && (
-            <div className="mt-2 flex items-center gap-2">
-              <span className="text-xs text-stone-500 whitespace-nowrap">左右滑动</span>
-              <input
-                type="range"
-                min={0}
-                max={scrollMax}
-                value={scrollLeft}
-                onChange={(e) => onSliderChange(Number(e.target.value))}
-                className="flex-1 h-2 rounded-lg appearance-none bg-stone-200 accent-amber-600"
-              />
+          <div className="border-t border-stone-200 pt-4">
+            <h3 className="text-sm font-medium text-stone-600 mb-1">{t(locale, 'ai.translation_title')}</h3>
+            <textarea
+              readOnly
+              value={zhTranslation}
+              className="w-full min-h-[120px] resize-y border border-stone-200 rounded-lg px-3 py-2 text-stone-800 bg-stone-50 text-sm"
+              style={{ fontFamily: 'system-ui' }}
+            />
+            {isExplaining && !zhTranslation && (
+              <p className="text-stone-400 text-sm mt-1">生成中…</p>
+            )}
+            <div className="mt-2">
+              <button
+                type="button"
+                onClick={() => copyTextToClipboard(zhTranslation, setCopyZhStatus)}
+                disabled={!zhTranslation}
+                className="px-3 py-1.5 text-sm border border-stone-300 rounded-lg hover:bg-stone-100 disabled:opacity-50"
+              >
+                {copyZhStatus === 'ok' ? t(locale, 'copy_done') : copyZhStatus === 'fail' ? t(locale, 'copy_fail') : t(locale, 'copy')}
+              </button>
             </div>
-          )}
-          <div className="mt-2">
-            <button
-              type="button"
-              onClick={copyResult}
-              className="px-3 py-1.5 text-sm border border-stone-300 rounded-lg hover:bg-stone-100"
-            >
-              {copyStatus === 'ok' ? t(locale, 'copy_done') : copyStatus === 'fail' ? t(locale, 'copy_fail') : t(locale, 'copy')}
-            </button>
+          </div>
+          <div className="border-t border-stone-200 pt-4">
+            <h3 className="text-sm font-medium text-stone-600 mb-1">{t(locale, 'ai.words_title')}</h3>
+            <textarea
+              readOnly
+              value={wordExplanation}
+              className="w-full min-h-[120px] resize-y border border-stone-200 rounded-lg px-3 py-2 text-stone-800 bg-stone-50 text-sm"
+              style={{ fontFamily: 'system-ui' }}
+            />
+            {isExplaining && !wordExplanation && (
+              <p className="text-stone-400 text-sm mt-1">生成中…</p>
+            )}
+            <div className="mt-2">
+              <button
+                type="button"
+                onClick={() => copyTextToClipboard(wordExplanation, setCopyExplainStatus)}
+                disabled={!wordExplanation}
+                className="px-3 py-1.5 text-sm border border-stone-300 rounded-lg hover:bg-stone-100 disabled:opacity-50"
+              >
+                {copyExplainStatus === 'ok' ? t(locale, 'copy_done') : copyExplainStatus === 'fail' ? t(locale, 'copy_fail') : t(locale, 'copy')}
+              </button>
+            </div>
           </div>
         </div>
       )}

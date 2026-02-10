@@ -53,6 +53,8 @@ export const messages: Record<Locale, Record<string, string>> = {
     'access.reject_reason': '拒绝原因',
     'access.pending_requests': '待审批用户',
     'access.no_pending': '暂无待审批',
+    'ai.translation_title': '中文翻译',
+    'ai.words_title': '单词解释',
   },
   ja: {
     'site.name': '日本語ふりがなツール',
@@ -100,6 +102,8 @@ export const messages: Record<Locale, Record<string, string>> = {
     'access.reject_reason': '却下理由',
     'access.pending_requests': '承認待ちユーザー',
     'access.no_pending': '承認待ちはありません',
+    'ai.translation_title': '中国語訳',
+    'ai.words_title': '単語解説',
   },
   en: {
     'site.name': 'Japanese Kana Annotation Tool',
@@ -147,6 +151,8 @@ export const messages: Record<Locale, Record<string, string>> = {
     'access.reject_reason': 'Reject reason',
     'access.pending_requests': 'Pending requests',
     'access.no_pending': 'No pending requests',
+    'ai.translation_title': 'Chinese translation',
+    'ai.words_title': 'Word explanation',
   },
 };
 
