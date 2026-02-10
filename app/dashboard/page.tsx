@@ -31,7 +31,6 @@ function DashboardContent() {
     accessRejectReason?: string | null;
     isAdmin?: boolean;
   } | null>(null);
-  const [remaining, setRemaining] = useState<number | undefined>(undefined);
   const [requestingAccess, setRequestingAccess] = useState(false);
 
   useEffect(() => {
@@ -39,10 +38,6 @@ function DashboardContent() {
       .then((r) => r.json())
       .then(setUser);
   }, []);
-
-  useEffect(() => {
-    if (user?.remaining !== undefined) setRemaining(user.remaining);
-  }, [user]);
 
   if (user === null) {
     return (
@@ -137,11 +132,6 @@ function DashboardContent() {
       <div className="flex justify-between items-center mb-6">
         <div>
           <span className="text-stone-600">{user.identity ?? user.email ?? user.phone ?? ''}</span>
-          {user.isPremium && (
-            <span className="ml-2 text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded">
-              Premium
-            </span>
-          )}
           {user.isAdmin && (
             <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
               Admin
@@ -152,14 +142,6 @@ function DashboardContent() {
           {user.isAdmin && (
             <Link href="/dashboard/admin" className="text-sm text-amber-600 hover:underline">
               {t(locale, 'access.admin')}
-            </Link>
-          )}
-          {!user.isPremium && (
-            <Link
-              href="/dashboard/upgrade"
-              className="text-sm text-amber-600 hover:underline"
-            >
-              {t(locale, 'upgrade')}
             </Link>
           )}
           <button
@@ -174,11 +156,7 @@ function DashboardContent() {
           </button>
         </div>
       </div>
-      <FuriganaEditor
-        remaining={remaining}
-        isPremium={user.isPremium}
-        onRemainingChange={setRemaining}
-      />
+      <FuriganaEditor />
     </div>
   );
 }

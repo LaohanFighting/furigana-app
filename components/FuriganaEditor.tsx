@@ -159,14 +159,6 @@ export default function FuriganaEditor({
         >
           {loading ? '…' : t(locale, 'convert')}
         </button>
-        {typeof remaining === 'number' && !isPremium && (
-          <span className="text-sm text-stone-500">
-            {t(locale, 'remaining')}: {remaining}
-          </span>
-        )}
-        {isPremium && (
-          <span className="text-sm text-amber-600">{t(locale, 'unlimited')}</span>
-        )}
       </div>
       {error && <p className="text-red-600 text-sm">{error}</p>}
       {html && (

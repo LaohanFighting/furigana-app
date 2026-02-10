@@ -7,10 +7,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { textToFuriganaHtml } from '@/lib/furigana';
-import { getUserIdFromRequest, getUsageAndLimit, isPremiumUser, hasAccess } from '@/lib/auth-server';
+import { getUserIdFromRequest, hasAccess } from '@/lib/auth-server';
 import { prisma } from '@/lib/db';
-
-const FREE_TOTAL_LIMIT = 3; /* 免费用户总共使用次数限制（不重置） */
 
 export async function POST(request: NextRequest) {
   try {
@@ -50,36 +48,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { used, limit } = await getUsageAndLimit(user);
-    const isPremium = isPremiumUser(user);
-    if (!isPremium && used >= limit) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Total limit reached. Please upgrade to premium for unlimited use.',
-          remaining: 0,
-          html: '',
-        },
-        { status: 429 }
-      );
-    }
-
     const html = await textToFuriganaHtml(text);
-
-    // 总共限制：直接递增使用次数，不重置
-    if (!isPremium) {
-      await prisma.user.update({
-        where: { id: userId },
-        data: { dailyUsed: { increment: 1 } },
-      });
-    }
-
-    const nextRemaining = isPremium ? undefined : Math.max(0, limit - used - 1);
 
     return NextResponse.json({
       success: true,
       html,
-      remaining: nextRemaining,
     });
   } catch (e) {
     console.error('/api/furigana error:', e);

@@ -8,7 +8,7 @@ import { prisma } from '@/lib/db';
 import type { User } from '@prisma/client';
 
 const COOKIE_NAME = 'furigana_session';
-const FREE_TOTAL_LIMIT = 3; /* 免费用户总共使用次数限制（不重置） */
+const FREE_TOTAL_LIMIT = Number.MAX_SAFE_INTEGER; /* 已取消次数限制，所有人无限使用 */
 
 /**
  * 检查用户是否是有效的 Premium 用户
