@@ -26,9 +26,12 @@ function ActivateContent() {
   const [code, setCode] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
+  const [activated, setActivated] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
 
   async function handleActivate(e: React.FormEvent) {
     e.preventDefault();
@@ -59,12 +62,51 @@ function ActivateContent() {
         return;
       }
 
-      setSuccess(true);
-      // 2秒后跳转到 dashboard
-      setTimeout(() => {
-        router.push('/dashboard');
-        router.refresh();
-      }, 2000);
+      // 激活成功，需要设置密码
+      setActivated(true);
+      setUserId(data.userId || null);
+    } catch (e) {
+      setError('网络错误，请重试');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleSetPassword(e: React.FormEvent) {
+    e.preventDefault();
+    if (!password || password.length < 6) {
+      setError('密码至少6位');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError('两次输入的密码不一致');
+      return;
+    }
+
+    setError('');
+    setLoading(true);
+
+    try {
+      const res = await fetch('/api/auth/set-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          password,
+          userId,
+        }),
+        credentials: 'include',
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || '设置密码失败');
+        return;
+      }
+
+      // 密码设置成功，跳转到 dashboard
+      router.push('/dashboard');
+      router.refresh();
     } catch (e) {
       setError('网络错误，请重试');
     } finally {
@@ -76,12 +118,54 @@ function ActivateContent() {
     <div className="max-w-sm mx-auto px-4 py-12">
       <h1 className="text-xl font-semibold mb-6">激活账号</h1>
 
-      {success ? (
+      {activated ? (
         <div className="space-y-4">
-          <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+          <div className="p-4 bg-green-50 border border-green-200 rounded-lg mb-4">
             <p className="text-green-800 font-medium">激活成功！</p>
-            <p className="text-sm text-green-700 mt-1">正在跳转到工具页面...</p>
+            <p className="text-sm text-green-700 mt-1">请设置密码，以便下次登录</p>
           </div>
+
+          <form onSubmit={handleSetPassword} className="space-y-4">
+            <div>
+              <label className="block text-sm text-stone-600 mb-1">设置密码 *</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-3 py-2 border border-stone-300 rounded-lg"
+                placeholder="至少6位"
+                minLength={6}
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm text-stone-600 mb-1">确认密码 *</label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full px-3 py-2 border border-stone-300 rounded-lg"
+                placeholder="再次输入密码"
+                minLength={6}
+                required
+              />
+            </div>
+
+            <p className="text-xs text-stone-500">
+              * 密码用于后续登录，请妥善保管
+            </p>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-2 bg-amber-600 text-white rounded-lg disabled:opacity-50"
+            >
+              {loading ? '设置中...' : '完成设置'}
+            </button>
+          </form>
+
+          {error && <p className="mt-4 text-red-600 text-sm">{error}</p>}
         </div>
       ) : (
         <>

@@ -15,6 +15,7 @@ model User {
   id                  String    @id @default(cuid())
   email               String?   @unique  // 邮箱登录
   phone               String?   @unique  // 手机号登录，至少其一
+  password            String?   // 密码（bcrypt 加密），激活码用户必须设置
   isPremium           Boolean   @default(false)  // 保留字段，向后兼容
   premiumExpiresAt    DateTime?  // Premium订阅到期时间（每月订阅）
   dailyUsed           Int       @default(0)

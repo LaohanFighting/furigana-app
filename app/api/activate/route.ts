@@ -112,26 +112,14 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // 创建会话并设置 cookie
-    const token = await createSessionToken(user.id);
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
-    const useSecureCookie = appUrl.startsWith('https://');
-
-    const response = NextResponse.json({
+    // 激活成功，但需要设置密码后才能登录
+    // 返回需要设置密码的状态
+    return NextResponse.json({
       success: true,
-      message: '激活成功！',
+      message: '激活成功！请设置密码',
       userId: user.id,
+      needsPassword: !user.password, // 如果已有密码则不需要设置
     });
-
-    response.cookies.set(COOKIE_NAME, token, {
-      httpOnly: true,
-      secure: useSecureCookie,
-      sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60,
-      path: '/',
-    });
-
-    return response;
   } catch (e) {
     console.error('[api/activate] error:', e);
     const error = e instanceof Error ? e.message : '激活失败';
