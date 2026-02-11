@@ -43,7 +43,14 @@ export async function POST(request: NextRequest) {
     if (words.length === 0) {
       return NextResponse.json({ success: true, explanation: '' });
     }
-    const explanation = await explainJapaneseWordsFromList(words);
+    const CHUNK_SIZE = 10;
+    const parts: string[] = [];
+    for (let i = 0; i < words.length; i += CHUNK_SIZE) {
+      const chunk = words.slice(i, i + CHUNK_SIZE);
+      const part = await explainJapaneseWordsFromList(chunk);
+      if (part) parts.push(part);
+    }
+    const explanation = parts.join('\n\n');
     return NextResponse.json({ success: true, explanation });
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Server error';

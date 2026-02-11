@@ -222,11 +222,18 @@ export default function FuriganaEditor({
       el.style.height = `${Math.max(120, h)}px`;
       el.style.overflow = '';
     };
-    const id = requestAnimationFrame(() => {
+    const run = () => {
       fit(translationTextareaRef);
       fit(explanationTextareaRef);
-    });
-    return () => cancelAnimationFrame(id);
+    };
+    const id = requestAnimationFrame(run);
+    const t1 = setTimeout(run, 150);
+    const t2 = setTimeout(run, 450);
+    return () => {
+      cancelAnimationFrame(id);
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
   }, [zhTranslation, wordExplanation]);
 
   function onResultScroll() {

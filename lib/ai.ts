@@ -11,11 +11,16 @@ function getApiKey(): string | null {
   return typeof key === 'string' && key.trim() ? key.trim() : null;
 }
 
-async function chat(userContent: string, systemContent: string): Promise<string> {
+async function chat(
+  userContent: string,
+  systemContent: string,
+  options?: { max_tokens?: number }
+): Promise<string> {
   const apiKey = getApiKey();
   if (!apiKey) {
     throw new Error('OPENAI_API_KEY is not configured');
   }
+  const maxTokens = options?.max_tokens ?? 2048;
   const res = await fetch(OPENAI_URL, {
     method: 'POST',
     headers: {
@@ -28,7 +33,7 @@ async function chat(userContent: string, systemContent: string): Promise<string>
         { role: 'system', content: systemContent },
         { role: 'user', content: userContent },
       ],
-      max_tokens: 2048,
+      max_tokens: maxTokens,
     }),
   });
   if (!res.ok) {
@@ -83,5 +88,5 @@ export async function explainJapaneseWordsFromList(
   const userContent = filtered
     .map((w) => `${w.word}(${w.reading})`)
     .join('\n');
-  return chat(userContent, EXPLAIN_WORDS_FROM_LIST_SYSTEM);
+  return chat(userContent, EXPLAIN_WORDS_FROM_LIST_SYSTEM, { max_tokens: 4096 });
 }
