@@ -49,7 +49,8 @@ export async function generateJapaneseAudio(text: string): Promise<ArrayBuffer> 
     body: JSON.stringify({
       model: 'tts-1',
       input: trimmed,
-      voice: 'alloy',
+      voice: 'nova',
+      language: 'ja',
       response_format: 'mp3',
     }),
   });

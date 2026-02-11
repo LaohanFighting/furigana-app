@@ -38,7 +38,7 @@
 
 /* rt 不设置 display，只调字体 */
 .furigana-result rt {
-  font-size: 0.55em;
+  font-size: 0.48em;
   line-height: 1;
   color: #666;
 }

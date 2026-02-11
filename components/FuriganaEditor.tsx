@@ -312,7 +312,7 @@ export default function FuriganaEditor({
       white-space: nowrap;
     }
     rt {
-      font-size: 0.55em;
+      font-size: 0.48em;
       line-height: 1;
       color: #666;
     }
