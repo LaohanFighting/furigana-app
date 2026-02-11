@@ -29,6 +29,7 @@ model User {
   updatedAt           DateTime  @updatedAt
   orders              Order[]
   sessions            Session[]
+  activationCode      ActivationCode?
 }
 
 model Session {
@@ -59,4 +60,17 @@ model Order {
   channel    String?  // alipay | wechat
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+}
+
+model ActivationCode {
+  id        String   @id @default(cuid())
+  code      String   @unique  // 激活码，格式：FURIGANA-XXXX-XXXX
+  userId    String?  @unique  // 使用后关联的用户ID（一个用户只能有一个激活码）
+  email     String?  // 可选：预填邮箱（用于创建账号）
+  phone     String?  // 可选：预填手机号（用于创建账号）
+  used      Boolean  @default(false)  // 是否已使用
+  expiresAt DateTime?  // 过期时间（可选）
+  createdAt DateTime @default(now())
+  usedAt    DateTime?  // 使用时间
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 }

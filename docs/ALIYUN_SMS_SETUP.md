@@ -7,13 +7,73 @@
 
 ---
 
-## 步骤 1：注册并开通阿里云短信服务
+## ⚠️ 个人用户：只能用「短信认证」免资质（不能走普通短信签名）
+
+根据当前运营商与阿里云要求，**国内短信的「签名」必须绑定企业资质**，个人无法用「个人资质」报备签名。  
+**个人开发者**请使用阿里云 **「短信认证」** 服务（免资质、免申请签名/模板，即开即用）：
+
+- **控制台**：[号码认证服务 → 短信认证](https://dypns.console.aliyun.com)（开通「短信认证」功能）
+- **官方说明**：[个人开发者如何接入短信验证码服务](https://help.aliyun.com/zh/pnvs/use-cases/sms-verify-for-individual-developers)
+
+本仓库支持两种方式（二选一）：
+
+| 方式 | 适用 | 配置说明 |
+|------|------|----------|
+| **短信认证（推荐个人）** | 个人实名、无企业资质 | 在号码认证控制台开通后，配置 `ALIYUN_SMS_USE_AUTH=1` 及控制台里提供的签名/模板（见下文「个人用户：短信认证」） |
+| **短信服务（需企业资质）** | 已企业认证、有签名/模板 | 在短信服务控制台申请签名与模板，配置 `SMS_SIGN_NAME`、`SMS_TEMPLATE_CODE` |
+
+---
+
+## ⚠️ 国内短信请用「中国站」（不要用国际站/日本站）
+
+给**中国大陆手机号**发验证码，必须在 **阿里云中国站** 开通（短信认证或短信服务）。  
+若打开 [https://www.aliyun.com](https://www.aliyun.com) 显示为英文或国际版界面：
+
+1. **切换语言**：在页面底部或右上角把语言改为 **简体中文**，或  
+2. **直接进中国站控制台**：  
+   - 控制台首页：[https://home.console.aliyun.com](https://home.console.aliyun.com)  
+   - 短信服务控制台：[https://dysms.console.aliyun.com](https://dysms.console.aliyun.com)  
+
+用上述链接登录后，在控制台里完成**中国站实名认证**（身份证等），再开通短信服务。  
+若你之前是在 **alibabacloud.com** 或地区选成日本的账号，那是国际站，无法用于国内短信；需在中国站用手机号/邮箱重新注册并实名。
+
+---
+
+## 个人用户：短信认证（免资质，无需企业）
+
+个人账号无法在「短信服务」里申请签名（需企业资质）。请改用 **号码认证服务 → 短信认证**，免申请签名/模板，即开即用。
+
+### 1. 开通短信认证
+
+1. 打开 [号码认证服务控制台](https://dypns.console.aliyun.com)，在左侧找到并开通 **短信认证**。
+2. 在控制台里查看并记下系统提供的 **签名名称**（SignName）和 **验证码模板 CODE**（TemplateCode）——多为预置的，可直接用于 API。
+3. 创建 AccessKey： [AccessKey 管理](https://ram.console.aliyun.com/manage/ak)（与短信服务共用同一对即可）。
+
+### 2. 配置 .env（短信认证方式）
+
+在服务器 `.env` 中配置（**不要**再填 `SMS_SIGN_NAME` / `SMS_TEMPLATE_CODE`，改用下面三项）：
+
+```env
+ALIYUN_ACCESS_KEY_ID=你的AccessKeyId
+ALIYUN_ACCESS_KEY_SECRET=你的AccessKeySecret
+ALIYUN_SMS_USE_AUTH=1
+ALIYUN_SMS_AUTH_SIGN_NAME=控制台里看到的签名名称
+ALIYUN_SMS_AUTH_TEMPLATE_CODE=控制台里看到的验证码模板Code
+```
+
+配置后重启应用。项目会通过 **短信认证 API**（Dypnsapi）发验证码，无需企业签名/模板审核。
+
+更多说明：[个人开发者如何接入短信验证码服务](https://help.aliyun.com/zh/pnvs/use-cases/sms-verify-for-individual-developers)。
+
+---
+
+## 步骤 1：注册并开通阿里云短信服务（企业用户走此路径）
 
 ### 1.1 注册阿里云账号
 
-1. 访问 [阿里云官网](https://www.aliyun.com)
+1. 访问 [阿里云中国站](https://www.aliyun.com) 并切换为 **简体中文**，或直接打开 [控制台](https://home.console.aliyun.com) 登录
 2. 注册/登录账号
-3. 完成实名认证（发送短信需要）
+3. 在中国站完成**实名认证**（发送国内短信必须；个人认证用中国大陆身份证等，按页面提示操作）
 
 ### 1.2 开通短信服务
 
