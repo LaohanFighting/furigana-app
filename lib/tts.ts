@@ -3,7 +3,12 @@
  * 独立于假名注音逻辑，仅使用用户输入的原始文本
  */
 
-const OPENAI_TTS_URL = 'https://api.openai.com/v1/audio/speech';
+const DEFAULT_OPENAI_BASE = 'https://api.openai.com/v1';
+
+function getOpenAIBase(): string {
+  const base = process.env.OPENAI_API_BASE?.trim();
+  return base ? base.replace(/\/$/, '') : DEFAULT_OPENAI_BASE;
+}
 
 function getApiKey(): string | null {
   const key = process.env.OPENAI_API_KEY;
@@ -25,7 +30,10 @@ export async function generateJapaneseAudio(text: string): Promise<ArrayBuffer> 
   if (!apiKey) {
     throw new Error('OPENAI_API_KEY is not configured');
   }
-  const res = await fetch(OPENAI_TTS_URL, {
+  const base = getOpenAIBase();
+  const url = `${base}/audio/speech`;
+  console.log('[lib/tts] request URL:', url);
+  const res = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

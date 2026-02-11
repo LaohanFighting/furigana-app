@@ -3,8 +3,13 @@
  * 独立于假名注音逻辑，仅用 LLM，不依赖 kuroshiro/furigana
  */
 
-const OPENAI_URL = 'https://api.openai.com/v1/chat/completions';
+const DEFAULT_OPENAI_BASE = 'https://api.openai.com/v1';
 const MODEL = 'gpt-4o-mini';
+
+function getOpenAIBase(): string {
+  const base = process.env.OPENAI_API_BASE?.trim();
+  return base ? base.replace(/\/$/, '') : DEFAULT_OPENAI_BASE;
+}
 
 function getApiKey(): string | null {
   const key = process.env.OPENAI_API_KEY;
@@ -20,8 +25,11 @@ async function chat(
   if (!apiKey) {
     throw new Error('OPENAI_API_KEY is not configured');
   }
+  const base = getOpenAIBase();
+  const url = `${base}/chat/completions`;
+  console.log('[lib/ai] request URL:', url);
   const maxTokens = options?.max_tokens ?? 2048;
-  const res = await fetch(OPENAI_URL, {
+  const res = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
