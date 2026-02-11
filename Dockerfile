@@ -1,6 +1,7 @@
 # 日语通 - 腾讯云轻量 / Docker 部署
+# 使用 slim（Debian）而非 alpine，避免 Prisma schema engine 在 Alpine/OpenSSL 下报错
 # 构建阶段
-FROM node:18-alpine AS builder
+FROM node:18-slim AS builder
 
 WORKDIR /app
 
@@ -20,7 +21,7 @@ RUN mkdir -p public
 RUN npx next build
 
 # 运行阶段
-FROM node:18-alpine AS runner
+FROM node:18-slim AS runner
 
 WORKDIR /app
 
