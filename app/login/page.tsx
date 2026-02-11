@@ -25,15 +25,11 @@ function LoginContent() {
   const locale = useLocale();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [loginMethod, setLoginMethod] = useState<'email-code' | 'phone-code' | 'password'>('email-code');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
-  const [step, setStep] = useState<'input' | 'code'>('input');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [devCode, setDevCode] = useState<string | undefined>(undefined);
 
   async function handlePasswordLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -79,226 +75,59 @@ function LoginContent() {
     }
   }
 
-  async function sendCode(e: React.FormEvent) {
-    e.preventDefault();
-    if (loginMethod === 'email-code') {
-      const emailVal = email.trim().toLowerCase();
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal)) {
-        setError('Invalid email');
-        return;
-      }
-    } else {
-      const phoneDigits = normalizePhone(phone);
-      if (phoneDigits.length < 10) {
-        setError(locale === 'zh' ? '请输入有效手机号' : 'Invalid phone number');
-        return;
-      }
-    }
-    setError('');
-    setLoading(true);
-    try {
-      const body = loginMethod === 'email-code'
-        ? { email: email.trim().toLowerCase() }
-        : { phone: normalizePhone(phone) };
-      const res = await fetch('/api/auth/send-code', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || 'Failed');
-        return;
-      }
-      if (data.devCode) {
-        setDevCode(data.devCode);
-        setCode(data.devCode);
-      }
-      setStep('code');
-    } catch (e) {
-      setError('Network error');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function verifyCode(e: React.FormEvent) {
-    e.preventDefault();
-    if (!code.trim()) return;
-    setError('');
-    setLoading(true);
-    try {
-      const body = loginMethod === 'email-code'
-        ? { email: email.trim().toLowerCase(), code: code.trim() }
-        : { phone: normalizePhone(phone), code: code.trim() };
-      const res = await fetch('/api/auth/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-        credentials: 'include',
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || 'Failed');
-        return;
-      }
-      const next = searchParams.get('next') || '/dashboard';
-      router.push(next);
-      router.refresh();
-    } catch (e) {
-      setError('Network error');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const identity = loginMethod === 'email-code' ? email.trim() : phone.trim();
-
   return (
     <div className="max-w-sm mx-auto px-4 py-12">
       <h1 className="text-xl font-semibold mb-6">{t(locale, 'login')}</h1>
 
-      {step === 'input' && (
-        <>
-          <div className="flex gap-2 mb-4">
-            <button
-              type="button"
-              onClick={() => { setLoginMethod('email-code'); setError(''); }}
-              className={`flex-1 py-2 rounded-lg text-sm font-medium ${loginMethod === 'email-code' ? 'bg-amber-600 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'}`}
-            >
-              {t(locale, 'login_by_email')}
-            </button>
-            <button
-              type="button"
-              onClick={() => { setLoginMethod('phone-code'); setError(''); }}
-              className={`flex-1 py-2 rounded-lg text-sm font-medium ${loginMethod === 'phone-code' ? 'bg-amber-600 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'}`}
-            >
-              {t(locale, 'login_by_phone')}
-            </button>
-            <button
-              type="button"
-              onClick={() => { setLoginMethod('password'); setError(''); }}
-              className={`flex-1 py-2 rounded-lg text-sm font-medium ${loginMethod === 'password' ? 'bg-amber-600 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'}`}
-            >
-              {locale === 'zh' ? '密码登录' : 'Password'}
-            </button>
-          </div>
-
-          {loginMethod === 'password' ? (
-            <form onSubmit={handlePasswordLogin} className="space-y-4">
-              <div>
-                <label className="block text-sm text-stone-600 mb-1">邮箱或手机号</label>
-                <input
-                  type="text"
-                  value={email || phone}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (/@/.test(val)) {
-                      setEmail(val);
-                      setPhone('');
-                    } else {
-                      setPhone(normalizePhone(val));
-                      setEmail('');
-                    }
-                  }}
-                  className="w-full px-3 py-2 border border-stone-300 rounded-lg"
-                  placeholder={locale === 'zh' ? 'your@example.com 或 11位手机号' : 'Email or phone'}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-stone-600 mb-1">密码</label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-3 py-2 border border-stone-300 rounded-lg"
-                  placeholder={locale === 'zh' ? '请输入密码' : 'Password'}
-                  required
-                />
-              </div>
-              <button type="submit" disabled={loading} className="w-full py-2 bg-amber-600 text-white rounded-lg disabled:opacity-50">
-                {loading ? '登录中...' : '登录'}
-              </button>
-              <p className="text-xs text-stone-500">
-                {locale === 'zh' ? '已激活用户可用密码登录' : 'Activated users can login with password'}
-              </p>
-            </form>
-          ) : (
-            <form onSubmit={sendCode} className="space-y-4">
-              <div>
-                <label className="block text-sm text-stone-600 mb-1">
-                  {loginMethod === 'email-code' ? t(locale, 'email') : t(locale, 'phone')}
-                </label>
-                {loginMethod === 'email-code' ? (
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-3 py-2 border border-stone-300 rounded-lg"
-                    placeholder={locale === 'zh' ? 'your@example.com' : undefined}
-                    required
-                  />
-                ) : (
-                  <input
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="w-full px-3 py-2 border border-stone-300 rounded-lg"
-                    placeholder={locale === 'zh' ? '11 位手机号' : 'Phone number'}
-                    maxLength={11}
-                  />
-                )}
-              </div>
-              <button type="submit" disabled={loading} className="w-full py-2 bg-amber-600 text-white rounded-lg disabled:opacity-50">
-                {t(locale, 'send_code')}
-              </button>
-            </form>
-          )}
-          {loginMethod === 'phone-code' && locale === 'zh' && (
-            <p className="mt-2 text-xs text-stone-500">大陆用户建议用手机号登录，验证码更稳定</p>
-          )}
-        </>
-      )}
-
-      {step === 'code' && (
-        <form onSubmit={verifyCode} className="space-y-4">
-          <p className="text-sm text-stone-600">
-            {t(locale, 'code_sent_to')} {identity}
-          </p>
-          {devCode && (
-            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-              <p className="text-xs text-amber-800 font-medium mb-1">开发模式 - 验证码已自动填入</p>
-              <p className="text-sm text-amber-700">验证码：<strong>{devCode}</strong></p>
-            </div>
-          )}
-          <div>
-            <label className="block text-sm text-stone-600 mb-1">{t(locale, 'code')}</label>
-            <input
-              type="text"
-              value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              className="w-full px-3 py-2 border border-stone-300 rounded-lg"
-              placeholder="6 位数字"
-              maxLength={6}
-            />
-          </div>
-          <button type="submit" disabled={loading} className="w-full py-2 bg-amber-600 text-white rounded-lg disabled:opacity-50">
-            {t(locale, 'verify')}
-          </button>
-          <button
-            type="button"
-            onClick={() => { setStep('input'); setCode(''); setError(''); setDevCode(undefined); }}
-            className="text-sm text-stone-500 hover:underline"
-          >
-            {loginMethod === 'email-code' ? t(locale, 'change_email') : t(locale, 'change_phone')}
-          </button>
-        </form>
-      )}
+      <form onSubmit={handlePasswordLogin} className="space-y-4">
+        <div>
+          <label className="block text-sm text-stone-600 mb-1">
+            {locale === 'zh' ? '邮箱或手机号' : 'Email or phone'}
+          </label>
+          <input
+            type="text"
+            value={email || phone}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (/@/.test(val)) {
+                setEmail(val);
+                setPhone('');
+              } else {
+                setPhone(normalizePhone(val));
+                setEmail('');
+              }
+            }}
+            className="w-full px-3 py-2 border border-stone-300 rounded-lg"
+            placeholder={locale === 'zh' ? 'your@example.com 或 11位手机号' : 'Email or phone'}
+            required
+          />
+        </div>
+        <div>
+          <label className="block text-sm text-stone-600 mb-1">
+            {locale === 'zh' ? '密码' : 'Password'}
+          </label>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full px-3 py-2 border border-stone-300 rounded-lg"
+            placeholder={locale === 'zh' ? '请输入密码' : 'Password'}
+            required
+          />
+        </div>
+        <button type="submit" disabled={loading} className="w-full py-2 bg-amber-600 text-white rounded-lg disabled:opacity-50">
+          {loading ? (locale === 'zh' ? '登录中...' : 'Logging in...') : (locale === 'zh' ? '登录' : 'Login')}
+        </button>
+        <p className="text-xs text-stone-500">
+          {locale === 'zh' ? '已激活用户可用密码登录' : 'Activated users can login with password'}
+        </p>
+      </form>
 
       {error && <p className="mt-4 text-red-600 text-sm">{error}</p>}
       <p className="mt-6 text-sm text-stone-500">
-        <Link href="/dashboard" className="text-amber-600 hover:underline">返回工具</Link>
+        <Link href="/dashboard" className="text-amber-600 hover:underline">
+          {locale === 'zh' ? '返回工具' : 'Back to tool'}
+        </Link>
       </p>
     </div>
   );
