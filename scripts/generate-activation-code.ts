@@ -36,7 +36,7 @@ async function main() {
   const codes: string[] = [];
 
   for (let i = 0; i < count; i++) {
-    let code: string;
+    let code: string = '';
     let exists = true;
 
     // 确保激活码唯一
