@@ -1,14 +1,17 @@
 /**
  * POST /api/ai/explain-words
- * 请求体: { words: Array<{ word: string, reading: string }> }（由前端从假名 HTML 解析得到）
+ * 请求体: { text: string } 原始日语文本
  * 响应: { success: boolean, explanation?: string, error?: string }
- * 对列表中的每一个单词解释，例句为新造句，例句翻译标签为「中文翻译」。
+ * 使用重点单词筛选规则（含汉字、实词、排除助词/形式名词/基础词、最多 5 个），只对筛选出的词生成解释。
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserIdFromRequest, hasAccess } from '@/lib/auth-server';
 import { prisma } from '@/lib/db';
 import { explainJapaneseWordsFromList } from '@/lib/ai';
+import { getTokensFromText } from '@/lib/furigana';
+import { filterKeyWords } from '@/lib/word-filter';
+import type { KuromojiToken } from '@/lib/word-filter';
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,29 +30,18 @@ export async function POST(request: NextRequest) {
       );
     }
     const body = await request.json().catch(() => ({}));
-    const raw = body.words;
-    if (!Array.isArray(raw) || raw.length === 0) {
+    const text = typeof body.text === 'string' ? body.text : '';
+    if (!text.trim()) {
       return NextResponse.json(
-        { success: false, error: 'words array is required' },
+        { success: false, error: 'Text is required' },
         { status: 400 }
       );
     }
-    const words = raw
-      .map((w: unknown) => {
-        if (w && typeof w === 'object' && 'word' in w && 'reading' in w) {
-          return {
-            word: String((w as { word: unknown }).word),
-            reading: String((w as { reading: unknown }).reading),
-          };
-        }
-        return null;
-      })
-      .filter((w): w is { word: string; reading: string } => w !== null);
+    const rawTokens = await getTokensFromText(text);
+    const tokens = Array.isArray(rawTokens) ? (rawTokens as KuromojiToken[]) : [];
+    const words = filterKeyWords(tokens);
     if (words.length === 0) {
-      return NextResponse.json(
-        { success: false, error: 'Valid words required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: true, explanation: '' });
     }
     const explanation = await explainJapaneseWordsFromList(words);
     return NextResponse.json({ success: true, explanation });

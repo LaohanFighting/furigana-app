@@ -29,6 +29,18 @@ function furiganaTextToRubyHtml(furiganaText: string): string {
   return rubyHtml;
 }
 
+/** 供单词筛选使用：获取同一 Kuroshiro 分析器的 parse 结果（不改变假名注音逻辑） */
+type AnalyzerLike = { parse(str: string): Promise<unknown[]> };
+export async function getTokensFromText(text: string): Promise<unknown[]> {
+  if (!text || typeof text !== 'string') return [];
+  const trimmed = text.trim();
+  if (!trimmed) return [];
+  const kuroshiro = await getKuroshiro();
+  const analyzer = (kuroshiro as unknown as { _analyzer?: AnalyzerLike })._analyzer;
+  if (!analyzer || typeof analyzer.parse !== 'function') return [];
+  return analyzer.parse(trimmed);
+}
+
 /**
  * 将日文文本转换为带振假名的 HTML 字符串
  * - 仅对汉字标注平假名，假名/助词/标点不加注

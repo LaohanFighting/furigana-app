@@ -55,7 +55,6 @@ export default function FuriganaEditor({
         onRemainingChange(data.remaining);
       }
       const inputText = input.trim();
-      const wordsForExplain = parseRubyWords(sanitized);
       setIsExplaining(true);
       setZhTranslation('');
       setWordExplanation('');
@@ -66,14 +65,12 @@ export default function FuriganaEditor({
           credentials: 'include',
           body: JSON.stringify({ text: inputText }),
         }).then((r) => r.json()),
-        wordsForExplain.length > 0
-          ? fetch('/api/ai/explain-words', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              credentials: 'include',
-              body: JSON.stringify({ words: wordsForExplain }),
-            }).then((r) => r.json())
-          : Promise.resolve({ success: true, explanation: '' }),
+        fetch('/api/ai/explain-words', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ text: inputText }),
+        }).then((r) => r.json()),
       ])
         .then(([tr, ex]) => {
           if (tr.success && typeof tr.translation === 'string') setZhTranslation(tr.translation);
