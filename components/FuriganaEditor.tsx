@@ -47,11 +47,13 @@ export default function FuriganaEditor({
         return;
       }
       const raw = (data.html || '').replace(/\n/g, '').replace(/\r/g, '').replace(/\s{2,}/g, ' ').trim();
-      setHtml(sanitizeRubyHtml(raw));
+      const sanitized = sanitizeRubyHtml(raw);
+      setHtml(sanitized);
       if (typeof data.remaining === 'number' && onRemainingChange) {
         onRemainingChange(data.remaining);
       }
       const inputText = input.trim();
+      const wordsForExplain = parseRubyWords(sanitized);
       setIsExplaining(true);
       setZhTranslation('');
       setWordExplanation('');
@@ -62,12 +64,14 @@ export default function FuriganaEditor({
           credentials: 'include',
           body: JSON.stringify({ text: inputText }),
         }).then((r) => r.json()),
-        fetch('/api/ai/explain-words', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ text: inputText }),
-        }).then((r) => r.json()),
+        wordsForExplain.length > 0
+          ? fetch('/api/ai/explain-words', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify({ words: wordsForExplain }),
+            }).then((r) => r.json())
+          : Promise.resolve({ success: true, explanation: '' }),
       ])
         .then(([tr, ex]) => {
           if (tr.success && typeof tr.translation === 'string') setZhTranslation(tr.translation);
@@ -89,6 +93,21 @@ export default function FuriganaEditor({
       .replace(/\s*<\/ruby>\s*<\/ruby>/gi, '</ruby>')
       .replace(/<\/ruby>\s*<\/rp>/gi, '</ruby>')
       .replace(/<\/rp>\s*<\/ruby>/gi, '</ruby>');
+  }
+
+  /**
+   * 从假名注音 HTML 中解析出所有被注音的单词，用于单词解释 API（保证全部解释、不遗漏）
+   */
+  function parseRubyWords(rubyHtml: string): { word: string; reading: string }[] {
+    const list: { word: string; reading: string }[] = [];
+    const re = /<ruby>([^<]*)<rt>([^<]*)<\/rt>\s*<\/ruby>/g;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(rubyHtml)) !== null) {
+      const word = (m[1] ?? '').trim();
+      const reading = (m[2] ?? '').trim();
+      if (word) list.push({ word, reading });
+    }
+    return list;
   }
 
   /** 从 ruby HTML 提取纯文本（仅保留汉字/假名等可见正文，去掉 rt 标签内容避免重复） */

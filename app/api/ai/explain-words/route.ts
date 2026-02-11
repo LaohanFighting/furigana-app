@@ -1,14 +1,14 @@
 /**
  * POST /api/ai/explain-words
- * 请求体: { text: string }
+ * 请求体: { words: Array<{ word: string, reading: string }> }（由前端从假名 HTML 解析得到）
  * 响应: { success: boolean, explanation?: string, error?: string }
- * 对输入日文中有假名注音的单词进行解释，输出结构化纯文本。与假名注音逻辑独立，需登录且已审批。
+ * 对列表中的每一个单词解释，例句为新造句，例句翻译标签为「中文翻译」。
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserIdFromRequest, hasAccess } from '@/lib/auth-server';
 import { prisma } from '@/lib/db';
-import { explainJapaneseWords } from '@/lib/ai';
+import { explainJapaneseWordsFromList } from '@/lib/ai';
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,14 +27,31 @@ export async function POST(request: NextRequest) {
       );
     }
     const body = await request.json().catch(() => ({}));
-    const text = typeof body.text === 'string' ? body.text : '';
-    if (!text.trim()) {
+    const raw = body.words;
+    if (!Array.isArray(raw) || raw.length === 0) {
       return NextResponse.json(
-        { success: false, error: 'Text is required' },
+        { success: false, error: 'words array is required' },
         { status: 400 }
       );
     }
-    const explanation = await explainJapaneseWords(text);
+    const words = raw
+      .map((w: unknown) => {
+        if (w && typeof w === 'object' && 'word' in w && 'reading' in w) {
+          return {
+            word: String((w as { word: unknown }).word),
+            reading: String((w as { reading: unknown }).reading),
+          };
+        }
+        return null;
+      })
+      .filter((w): w is { word: string; reading: string } => w !== null);
+    if (words.length === 0) {
+      return NextResponse.json(
+        { success: false, error: 'Valid words required' },
+        { status: 400 }
+      );
+    }
+    const explanation = await explainJapaneseWordsFromList(words);
     return NextResponse.json({ success: true, explanation });
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Server error';

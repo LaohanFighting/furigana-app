@@ -53,25 +53,35 @@ export async function translateJapaneseToChinese(text: string): Promise<string> 
   return chat(trimmed, system);
 }
 
-const EXPLAIN_WORDS_SYSTEM = `你是一个日语词汇教师。根据用户给出的一段日语文本，找出其中「含有汉字、通常需要标注假名的单词」（即汉字词/用言等），对每个这样的单词给出解释。
+const EXPLAIN_WORDS_FROM_LIST_SYSTEM = `你是一个日语词汇教师。用户会给出一个「单词(读法)」的列表，这些是已经标注了假名的词。请对列表中的每一个单词都给出解释，不要遗漏任何一个。
 
 对每个单词严格按以下格式输出（纯文本，不要用 Markdown 或 HTML）：
 
 单词：原词(假名读法)
-词性：名词/动词/形容词/ etc.
+词性：名词/动词/形容词等
 意思：中文释义
 例句：
-一句包含该词的日语例句。
-该例句的中文翻译。
+（你必须自己造一句新的日语例句，句中要包含该词。禁止直接引用或复述用户输入的句子，要重新造句。）
+中文翻译：
+（上面例句的中文翻译，只写翻译内容即可。）
 
-多个单词之间用空行分隔。只输出上述内容，不要其他说明。`;
+多个单词之间用空行分隔。只输出上述内容，不要其他说明。必须覆盖用户给出的全部单词。`;
+
+export type WordWithReading = { word: string; reading: string };
 
 /**
- * 对文本中“有假名注音的单词”（汉字词）进行解释，输出结构化纯文本
+ * 对「已给出的单词列表」逐条解释，例句必须为新造句，不得引用用户输入；例句翻译的标签为「中文翻译」。
  */
-export async function explainJapaneseWords(text: string): Promise<string> {
-  if (!text || typeof text !== 'string') return '';
-  const trimmed = text.trim();
-  if (!trimmed) return '';
-  return chat(trimmed, EXPLAIN_WORDS_SYSTEM);
+export async function explainJapaneseWordsFromList(
+  words: WordWithReading[]
+): Promise<string> {
+  if (!Array.isArray(words) || words.length === 0) return '';
+  const filtered = words.filter(
+    (w) => typeof w.word === 'string' && typeof w.reading === 'string'
+  );
+  if (filtered.length === 0) return '';
+  const userContent = filtered
+    .map((w) => `${w.word}(${w.reading})`)
+    .join('\n');
+  return chat(userContent, EXPLAIN_WORDS_FROM_LIST_SYSTEM);
 }
