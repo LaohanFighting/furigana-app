@@ -8,7 +8,7 @@ export const locales: Locale[] = ['zh', 'ja', 'en'];
 
 export const messages: Record<Locale, Record<string, string>> = {
   zh: {
-    'site.name': '日语假名标注工具',
+    'site.name': '日语通',
     'site.tagline': '汉字自动标注平假名，支持复制与 SEO',
     'nav.home': '首页',
     'nav.tool': '标注工具',
@@ -29,7 +29,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'send_code': '发送验证码',
     'verify': '验证登录',
     'input.placeholder': '请输入日文',
-    'convert': '标注假名',
+    'convert': '开始生成',
     'output.title': '生成结果',
     'remaining': '剩余次数',
     'unlimited': '无限',
@@ -59,7 +59,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'tts.generating': '正在生成语音…',
   },
   ja: {
-    'site.name': '日本語ふりがなツール',
+    'site.name': '日本語通',
     'site.tagline': '漢字に自動で振り仮名。コピー・SEO対応',
     'nav.home': 'ホーム',
     'nav.tool': 'ツール',
@@ -80,7 +80,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'send_code': 'コードを送信',
     'verify': '認証してログイン',
     'input.placeholder': '日本語のテキストを入力…',
-    'convert': 'ふりがなを付ける',
+    'convert': '生成開始',
     'output.title': '結果（コピー可）',
     'remaining': '残り回数',
     'unlimited': '無制限',
@@ -110,7 +110,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'tts.generating': '音声を生成中…',
   },
   en: {
-    'site.name': 'Japanese Kana Annotation Tool',
+    'site.name': 'Nihongo Go',
     'site.tagline': 'Auto furigana for kanji. Copy & SEO friendly',
     'nav.home': 'Home',
     'nav.tool': 'Tool',
@@ -131,7 +131,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     'send_code': 'Send code',
     'verify': 'Verify & Login',
     'input.placeholder': 'Enter Japanese text with kanji…',
-    'convert': 'Add furigana',
+    'convert': 'Generate',
     'output.title': 'Result (copyable)',
     'remaining': 'Remaining',
     'unlimited': 'Unlimited',
