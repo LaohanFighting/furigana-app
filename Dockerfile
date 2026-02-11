@@ -15,6 +15,8 @@ COPY prisma ./prisma/
 RUN npx prisma generate
 
 COPY . .
+# 项目若无 public 目录，Next 运行期仍需该路径；确保存在供 runner 阶段 COPY
+RUN mkdir -p public
 RUN npx next build
 
 # 运行阶段
@@ -29,6 +31,7 @@ COPY --from=builder /app/package.json ./
 COPY --from=builder /app/node_modules ./node_modules/
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/prisma ./prisma/
+# 若项目无 public 目录，builder 中已 mkdir -p public，此处可安全复制
 COPY --from=builder /app/public ./public
 
 EXPOSE 3000
