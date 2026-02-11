@@ -23,6 +23,9 @@ RUN npx next build
 # 运行阶段
 FROM node:18-slim AS runner
 
+# Prisma schema engine 需要 OpenSSL，slim 镜像默认未装
+RUN apt-get update -y && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 ENV NODE_ENV=production
