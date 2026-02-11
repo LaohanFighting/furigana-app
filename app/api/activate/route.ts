@@ -102,6 +102,12 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // 如果用户已关联其他激活码，先解除旧关联（因为 userId 是唯一的）
+    await prisma.activationCode.updateMany({
+      where: { userId: user.id, id: { not: activationCode.id } },
+      data: { userId: null },
+    });
+
     // 标记激活码为已使用
     await prisma.activationCode.update({
       where: { id: activationCode.id },
