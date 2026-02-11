@@ -35,6 +35,7 @@ COPY --from=builder /app/package.json ./
 COPY --from=builder /app/node_modules ./node_modules/
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/prisma ./prisma/
+COPY --from=builder /app/scripts ./scripts/
 # 若项目无 public 目录，builder 中已 mkdir -p public，此处可安全复制
 COPY --from=builder /app/public ./public
 
