@@ -63,8 +63,11 @@ OPENAI_API_KEY="sk-..."
 
 ### 4. 构建并运行 Docker
 
+构建时已使用国内 npm 镜像（npmmirror），若 `npm ci` 失败会自动退回到 `npm install`。
+
 ```bash
 docker build -t nihongo-go .
+
 docker run -d \
   --name nihongo-go \
   -p 3000:3000 \

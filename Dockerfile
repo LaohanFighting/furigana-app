@@ -4,8 +4,11 @@ FROM node:18-alpine AS builder
 
 WORKDIR /app
 
+# 使用国内镜像加速（腾讯云服务器在大陆时 npm 拉包更稳定）
+RUN npm config set registry https://registry.npmmirror.com && npm config set fetch-timeout 120000
+
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci --prefer-offline --no-audit || npm install --legacy-peer-deps
 
 COPY prisma ./prisma/
 RUN npx prisma generate
