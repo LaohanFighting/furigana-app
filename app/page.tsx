@@ -35,23 +35,34 @@ export default async function HomePage({
         </header>
         <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-12">
           <h1 className="text-3xl font-bold text-stone-900 mb-2">
-            {t(initial, 'site.name')}
+            {t(initial, 'landing.h1')}
           </h1>
-          <p className="text-stone-600 mb-8">{t(initial, 'site.tagline')}</p>
-          <div className="flex gap-4">
+          <h2 className="text-xl text-stone-600 font-normal mb-6">
+            {t(initial, 'landing.h2')}
+          </h2>
+          <ul className="text-stone-700 space-y-2 mb-6">
+            <li>✔ {t(initial, 'landing.feature1')}</li>
+            <li>✔ {t(initial, 'landing.feature2')}</li>
+            <li>✔ {t(initial, 'landing.feature3')}</li>
+            <li>✔ {t(initial, 'landing.feature4')}</li>
+          </ul>
+          <div className="flex gap-4 mb-4">
             <Link
               href="/dashboard"
               className="px-6 py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700"
             >
-              {t(initial, 'nav.tool')}
+              {t(initial, 'landing.cta_tool')}
             </Link>
             <Link
               href="/login"
               className="px-6 py-3 border border-stone-300 rounded-lg hover:bg-stone-100"
             >
-              {t(initial, 'login')}
+              {t(initial, 'landing.login')}
             </Link>
           </div>
+          <p className="text-sm text-stone-400">
+            {t(initial, 'landing.slogan')}
+          </p>
           <footer className="mt-16 pt-8 border-t border-stone-200 text-sm text-stone-500">
             <Link href="/terms" className="mr-4">{t(initial, 'nav.terms')}</Link>
             <Link href="/privacy" className="mr-4">{t(initial, 'nav.privacy')}</Link>
@@ -59,6 +70,9 @@ export default async function HomePage({
             <a href={`mailto:${process.env.NEXT_PUBLIC_CONTACT_EMAIL || '2410382485@qq.com'}`}>
               {t(initial, 'contact.email')}: 2410382485@qq.com
             </a>
+            <p className="mt-3 text-stone-400">
+              {t(initial, 'landing.footer_note')}
+            </p>
           </footer>
         </main>
       </div>
