@@ -2,7 +2,7 @@
  * POST /api/ai/explain-words
  * 请求体: { text: string } 原始日语文本
  * 响应: { success: boolean, explanation?: string, error?: string }
- * 使用重点单词筛选规则（含汉字、实词、排除助词/形式名词/基础词、最多 5 个），只对筛选出的词生成解释。
+ * 使用重点单词筛选规则（含汉字、实词、排除助词/形式名词/基础词），对筛选出的全部重点词生成解释。
  */
 
 import { NextRequest, NextResponse } from 'next/server';

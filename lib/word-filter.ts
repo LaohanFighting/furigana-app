@@ -37,8 +37,6 @@ const BASIC_WORDS_SET = new Set([
   '食べる', '飲む', '寝る', '起きる', '勉強', '仕事', '学校', '家',
 ]);
 
-const MAX_KEYWORDS = 5;
-
 export type KuromojiToken = {
   surface_form: string;
   pos: string;
@@ -74,7 +72,7 @@ export function katakanaToHiragana(s: string): string {
 export type WordWithReading = { word: string; reading: string };
 
 /**
- * 从 token 列表筛出重点单词，最多 MAX_KEYWORDS 个，保持原文顺序
+ * 从 token 列表筛出全部重点单词（筛选标准不变），保持原文顺序
  */
 export function filterKeyWords(tokens: KuromojiToken[]): WordWithReading[] {
   const result: WordWithReading[] = [];
@@ -93,8 +91,6 @@ export function filterKeyWords(tokens: KuromojiToken[]): WordWithReading[] {
       word: basic,
       reading: katakanaToHiragana(reading || surface),
     });
-
-    if (result.length >= MAX_KEYWORDS) break;
   }
   return result;
 }
