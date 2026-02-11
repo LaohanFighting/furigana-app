@@ -184,16 +184,22 @@ export default function FuriganaEditor({
     return () => ro.disconnect();
   }, [html]);
 
-  /** 中文翻译、单词解释文本框随内容增高，保证能显示全部内容 */
+  /** 中文翻译、单词解释文本框随内容增高，保证能显示全部内容（含字数很多时） */
   useEffect(() => {
     const fit = (ref: React.RefObject<HTMLTextAreaElement | null>) => {
       const el = ref.current;
       if (!el) return;
-      el.style.height = 'auto';
-      el.style.height = `${Math.max(120, el.scrollHeight)}px`;
+      el.style.overflow = 'hidden';
+      el.style.height = '1px';
+      const h = el.scrollHeight;
+      el.style.height = `${Math.max(120, h)}px`;
+      el.style.overflow = '';
     };
-    fit(translationTextareaRef);
-    fit(explanationTextareaRef);
+    const id = requestAnimationFrame(() => {
+      fit(translationTextareaRef);
+      fit(explanationTextareaRef);
+    });
+    return () => cancelAnimationFrame(id);
   }, [zhTranslation, wordExplanation]);
 
   function onResultScroll() {
