@@ -16,6 +16,13 @@ function getApiKey(): string | null {
   return typeof key === 'string' && key.trim() ? key.trim() : null;
 }
 
+/** Cloudflare AI Gateway 开启认证时需传此头，值为 Cloudflare 创建的 AIG 令牌 */
+function getCloudflareAigHeaders(): Record<string, string> {
+  const token = process.env.CLOUDFLARE_AIG_TOKEN?.trim();
+  if (!token) return {};
+  return { 'cf-aig-authorization': `Bearer ${token}` };
+}
+
 async function chat(
   userContent: string,
   systemContent: string,
@@ -27,14 +34,15 @@ async function chat(
   }
   const base = getOpenAIBase();
   const url = `${base}/chat/completions`;
-  console.log('[lib/ai] request URL:', url);
   const maxTokens = options?.max_tokens ?? 2048;
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${apiKey}`,
+    ...getCloudflareAigHeaders(),
+  };
   const res = await fetch(url, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
+    headers,
     body: JSON.stringify({
       model: MODEL,
       messages: [

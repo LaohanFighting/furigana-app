@@ -15,6 +15,12 @@ function getApiKey(): string | null {
   return typeof key === 'string' && key.trim() ? key.trim() : null;
 }
 
+function getCloudflareAigHeaders(): Record<string, string> {
+  const token = process.env.CLOUDFLARE_AIG_TOKEN?.trim();
+  if (!token) return {};
+  return { 'cf-aig-authorization': `Bearer ${token}` };
+}
+
 /**
  * 根据日语文本生成朗读音频，返回 mp3 二进制
  */
@@ -32,13 +38,14 @@ export async function generateJapaneseAudio(text: string): Promise<ArrayBuffer> 
   }
   const base = getOpenAIBase();
   const url = `${base}/audio/speech`;
-  console.log('[lib/tts] request URL:', url);
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${apiKey}`,
+    ...getCloudflareAigHeaders(),
+  };
   const res = await fetch(url, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
+    headers,
     body: JSON.stringify({
       model: 'tts-1',
       input: trimmed,
