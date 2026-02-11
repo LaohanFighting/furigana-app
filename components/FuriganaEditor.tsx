@@ -22,6 +22,8 @@ export default function FuriganaEditor({
   const [error, setError] = useState('');
   const [copyStatus, setCopyStatus] = useState<'idle' | 'ok' | 'fail'>('idle');
   const resultScrollRef = useRef<HTMLDivElement>(null);
+  const translationTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const explanationTextareaRef = useRef<HTMLTextAreaElement>(null);
   const [scrollLeft, setScrollLeft] = useState(0);
   const [scrollMax, setScrollMax] = useState(0);
   const [zhTranslation, setZhTranslation] = useState('');
@@ -96,18 +98,52 @@ export default function FuriganaEditor({
   }
 
   /**
-   * 从假名注音 HTML 中解析出所有被注音的单词，用于单词解释 API（保证全部解释、不遗漏）
+   * 从假名注音 HTML 中解析出「完整单词」（汉字+送假名），如 訪(おとず)れる → 訪れる(おとずれる)
+   * 使用 DOM 解析，合并每个 ruby 与紧随的送假名，保证解释的是完整词而非仅注音部分
    */
   function parseRubyWords(rubyHtml: string): { word: string; reading: string }[] {
-    const list: { word: string; reading: string }[] = [];
-    const re = /<ruby>([^<]*)<rt>([^<]*)<\/rt>\s*<\/ruby>/g;
-    let m: RegExpExecArray | null;
-    while ((m = re.exec(rubyHtml)) !== null) {
-      const word = (m[1] ?? '').trim();
-      const reading = (m[2] ?? '').trim();
-      if (word) list.push({ word, reading });
+    if (typeof document === 'undefined') return [];
+    const div = document.createElement('div');
+    div.innerHTML = rubyHtml;
+    type Seg = { type: 'ruby'; base: string; reading: string } | { type: 'text'; content: string };
+    const segments: Seg[] = [];
+    function walk(n: Node): void {
+      if (n.nodeType === Node.TEXT_NODE) {
+        const c = n.textContent ?? '';
+        if (c) segments.push({ type: 'text', content: c });
+      } else if (n.nodeName === 'RUBY') {
+        const el = n as Element;
+        const base = (el.childNodes[0]?.textContent ?? '').trim();
+        const rt = el.querySelector('rt');
+        const reading = (rt?.textContent ?? '').trim();
+        segments.push({ type: 'ruby', base, reading });
+      } else {
+        n.childNodes.forEach(walk);
+      }
     }
-    return list;
+    walk(div);
+    const result: { word: string; reading: string }[] = [];
+    const isKanaOnly = (s: string) => /^[\u3040-\u309f\u30a0-\u30ff\s]*$/.test(s);
+    for (let i = 0; i < segments.length; i++) {
+      const seg = segments[i];
+      if (seg.type !== 'ruby') continue;
+      let word = seg.base;
+      let reading = seg.reading;
+      let j = i + 1;
+      while (j < segments.length && segments[j].type === 'text') {
+        const text = (segments[j] as { type: 'text'; content: string }).content;
+        if (!isKanaOnly(text)) break;
+        const t = text.trim();
+        if (t) {
+          word += t;
+          reading += t;
+        }
+        j++;
+      }
+      if (word) result.push({ word, reading });
+      i = j - 1;
+    }
+    return result;
   }
 
   /** 从 ruby HTML 提取纯文本（仅保留汉字/假名等可见正文，去掉 rt 标签内容避免重复） */
@@ -150,6 +186,18 @@ export default function FuriganaEditor({
     ro.observe(el);
     return () => ro.disconnect();
   }, [html]);
+
+  /** 中文翻译、单词解释文本框随内容增高，保证能显示全部内容 */
+  useEffect(() => {
+    const fit = (ref: React.RefObject<HTMLTextAreaElement | null>) => {
+      const el = ref.current;
+      if (!el) return;
+      el.style.height = 'auto';
+      el.style.height = `${Math.max(120, el.scrollHeight)}px`;
+    };
+    fit(translationTextareaRef);
+    fit(explanationTextareaRef);
+  }, [zhTranslation, wordExplanation]);
 
   function onResultScroll() {
     const el = resultScrollRef.current;
@@ -263,10 +311,11 @@ export default function FuriganaEditor({
           <div className="border-t border-stone-200 pt-4">
             <h3 className="text-sm font-medium text-stone-600 mb-1">{t(locale, 'ai.translation_title')}</h3>
             <textarea
+              ref={translationTextareaRef}
               readOnly
               value={zhTranslation}
               className="w-full min-h-[120px] resize-y border border-stone-200 rounded-lg px-3 py-2 text-stone-800 bg-stone-50 text-sm"
-              style={{ fontFamily: 'system-ui' }}
+              style={{ fontFamily: 'system-ui', minHeight: 120 }}
             />
             {isExplaining && !zhTranslation && (
               <p className="text-stone-400 text-sm mt-1">生成中…</p>
@@ -285,10 +334,11 @@ export default function FuriganaEditor({
           <div className="border-t border-stone-200 pt-4">
             <h3 className="text-sm font-medium text-stone-600 mb-1">{t(locale, 'ai.words_title')}</h3>
             <textarea
+              ref={explanationTextareaRef}
               readOnly
               value={wordExplanation}
               className="w-full min-h-[120px] resize-y border border-stone-200 rounded-lg px-3 py-2 text-stone-800 bg-stone-50 text-sm"
-              style={{ fontFamily: 'system-ui' }}
+              style={{ fontFamily: 'system-ui', minHeight: 120 }}
             />
             {isExplaining && !wordExplanation && (
               <p className="text-stone-400 text-sm mt-1">生成中…</p>

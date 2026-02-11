@@ -53,7 +53,7 @@ export async function translateJapaneseToChinese(text: string): Promise<string> 
   return chat(trimmed, system);
 }
 
-const EXPLAIN_WORDS_FROM_LIST_SYSTEM = `你是一个日语词汇教师。用户会给出一个「单词(读法)」的列表，这些是已经标注了假名的词。请对列表中的每一个单词都给出解释，不要遗漏任何一个。
+const EXPLAIN_WORDS_FROM_LIST_SYSTEM = `你是一个日语词汇教师。用户会给出一个「单词(读法)」的列表，每一项都是完整单词（含汉字与送假名），例如 訪れる(おとずれる)。请对每个完整单词释义，不要只解释其中的汉字部分，要解释整个词。
 
 对每个单词严格按以下格式输出（纯文本，不要用 Markdown 或 HTML）：
 
