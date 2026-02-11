@@ -71,9 +71,12 @@ export async function POST(request: NextRequest) {
       isPremium,
       remaining: isPremium ? undefined : Math.max(0, limit - used),
     });
+    // 仅当站点为 HTTPS 时设置 secure，否则 HTTP 访问时浏览器不会带 cookie（登录后仍提示未登录）
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
+    const useSecureCookie = appUrl.startsWith('https://');
     response.cookies.set(COOKIE_NAME, token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: useSecureCookie,
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60,
       path: '/',
