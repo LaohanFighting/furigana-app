@@ -31,6 +31,8 @@ export default function FuriganaEditor({
   const [isExplaining, setIsExplaining] = useState(false);
   const [copyZhStatus, setCopyZhStatus] = useState<'idle' | 'ok' | 'fail'>('idle');
   const [copyExplainStatus, setCopyExplainStatus] = useState<'idle' | 'ok' | 'fail'>('idle');
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
 
   async function convert() {
     if (!input.trim()) return;
@@ -58,6 +60,25 @@ export default function FuriganaEditor({
       setIsExplaining(true);
       setZhTranslation('');
       setWordExplanation('');
+      setAudioUrl((prev) => {
+        if (prev && prev.startsWith('blob:')) URL.revokeObjectURL(prev);
+        return null;
+      });
+      setIsGeneratingAudio(true);
+      fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ text: inputText }),
+      })
+        .then((r) => {
+          if (!r.ok) return null;
+          return r.blob();
+        })
+        .then((blob) => {
+          if (blob) setAudioUrl(URL.createObjectURL(blob));
+        })
+        .finally(() => setIsGeneratingAudio(false));
       Promise.all([
         fetch('/api/ai/translate', {
           method: 'POST',
@@ -183,6 +204,12 @@ export default function FuriganaEditor({
     ro.observe(el);
     return () => ro.disconnect();
   }, [html]);
+
+  useEffect(() => {
+    return () => {
+      if (audioUrl && audioUrl.startsWith('blob:')) URL.revokeObjectURL(audioUrl);
+    };
+  }, [audioUrl]);
 
   /** 中文翻译、单词解释文本框随内容增高，保证能显示全部内容（含字数很多时） */
   useEffect(() => {
@@ -310,6 +337,15 @@ export default function FuriganaEditor({
                 {copyStatus === 'ok' ? t(locale, 'copy_done') : copyStatus === 'fail' ? t(locale, 'copy_fail') : t(locale, 'copy')}
               </button>
             </div>
+          </div>
+          <div className="border-t border-stone-200 pt-4">
+            <h3 className="text-sm font-medium text-stone-600 mb-1">{t(locale, 'tts.title')}</h3>
+            {isGeneratingAudio && (
+              <p className="text-stone-400 text-sm mb-2">{t(locale, 'tts.generating')}</p>
+            )}
+            {audioUrl && (
+              <audio controls src={audioUrl} className="w-full" />
+            )}
           </div>
           <div className="border-t border-stone-200 pt-4">
             <h3 className="text-sm font-medium text-stone-600 mb-1">{t(locale, 'ai.translation_title')}</h3>

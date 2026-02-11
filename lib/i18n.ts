@@ -55,6 +55,8 @@ export const messages: Record<Locale, Record<string, string>> = {
     'access.no_pending': '暂无待审批',
     'ai.translation_title': '中文翻译',
     'ai.words_title': '单词解释',
+    'tts.title': '日语朗读',
+    'tts.generating': '正在生成语音…',
   },
   ja: {
     'site.name': '日本語ふりがなツール',
@@ -104,6 +106,8 @@ export const messages: Record<Locale, Record<string, string>> = {
     'access.no_pending': '承認待ちはありません',
     'ai.translation_title': '中国語訳',
     'ai.words_title': '単語解説',
+    'tts.title': '日本語読み上げ',
+    'tts.generating': '音声を生成中…',
   },
   en: {
     'site.name': 'Japanese Kana Annotation Tool',
@@ -153,6 +157,8 @@ export const messages: Record<Locale, Record<string, string>> = {
     'access.no_pending': 'No pending requests',
     'ai.translation_title': 'Chinese translation',
     'ai.words_title': 'Word explanation',
+    'tts.title': 'Japanese reading',
+    'tts.generating': 'Generating audio…',
   },
 };
 
