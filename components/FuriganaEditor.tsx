@@ -284,14 +284,51 @@ export default function FuriganaEditor({
     setCopyStatus('idle');
     try {
       const plainText = htmlToPlainText(html);
-      const htmlForClipboard = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>${html}</body></html>`;
+      
+      // 构建包含样式的完整 HTML，确保粘贴后格式不丢失
+      const htmlWithStyles = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    .furigana-result-inner {
+      display: block;
+      white-space: normal;
+      line-height: 2.2;
+      word-break: normal;
+      overflow-wrap: anywhere;
+    }
+    .rb {
+      display: inline;
+      white-space: normal;
+    }
+    .rb ruby {
+      white-space: nowrap;
+    }
+    ruby {
+      display: ruby;
+      ruby-position: over;
+      -webkit-ruby-position: over;
+      white-space: nowrap;
+    }
+    rt {
+      font-size: 0.55em;
+      line-height: 1;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <div class="furigana-result-inner">${html}</div>
+</body>
+</html>`;
       
       // 优先使用现代 Clipboard API
       if (navigator.clipboard && typeof navigator.clipboard.write === 'function') {
         try {
           await navigator.clipboard.write([
             new ClipboardItem({
-              'text/html': new Blob([htmlForClipboard], { type: 'text/html' }),
+              'text/html': new Blob([htmlWithStyles], { type: 'text/html' }),
               'text/plain': new Blob([plainText], { type: 'text/plain' }),
             }),
           ]);
@@ -299,12 +336,51 @@ export default function FuriganaEditor({
           setTimeout(() => setCopyStatus('idle'), 2000);
           return;
         } catch (e) {
-          // ClipboardItem 失败，降级到纯文本
-          console.warn('ClipboardItem failed, falling back to text:', e);
+          // ClipboardItem 失败，尝试使用更兼容的方式
+          console.warn('ClipboardItem failed, trying alternative method:', e);
         }
       }
       
-      // 降级方案：使用 textarea + execCommand
+      // 备选方案：使用隐藏的 div 元素复制 HTML
+      try {
+        const div = document.createElement('div');
+        div.style.position = 'fixed';
+        div.style.left = '-9999px';
+        div.style.top = '0';
+        div.innerHTML = html;
+        div.className = 'furigana-result-inner';
+        document.body.appendChild(div);
+        
+        const range = document.createRange();
+        range.selectNodeContents(div);
+        const selection = window.getSelection();
+        if (selection) {
+          selection.removeAllRanges();
+          selection.addRange(range);
+          
+          try {
+            const success = document.execCommand('copy');
+            selection.removeAllRanges();
+            document.body.removeChild(div);
+            
+            if (success) {
+              setCopyStatus('ok');
+              setTimeout(() => setCopyStatus('idle'), 2000);
+              return;
+            }
+          } catch (e) {
+            selection.removeAllRanges();
+            document.body.removeChild(div);
+            throw e;
+          }
+        } else {
+          document.body.removeChild(div);
+        }
+      } catch (e) {
+        console.warn('HTML copy failed, falling back to text:', e);
+      }
+      
+      // 最终降级方案：使用 textarea + execCommand 复制纯文本
       const textarea = document.createElement('textarea');
       textarea.value = plainText;
       textarea.style.position = 'fixed';
