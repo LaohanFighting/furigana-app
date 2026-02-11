@@ -60,13 +60,34 @@ export async function POST(request: NextRequest) {
         where: { email, id: { not: created.id } },
       });
 
+      const resendKey = process.env.RESEND_API_KEY?.trim();
       const host = process.env.SMTP_HOST;
       const user = process.env.SMTP_USER;
       const pass = process.env.SMTP_PASS;
       const port = Number(process.env.SMTP_PORT) || 587;
       const secure = port === 465;
 
-      if (host && user && pass) {
+      if (resendKey) {
+        // Resend API（走 HTTPS 443，适合腾讯云等限制 SMTP 端口的环境）
+        const from = process.env.RESEND_FROM?.trim() || 'onboarding@resend.dev';
+        const res = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${resendKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            from,
+            to: [email],
+            subject: 'Your verification code - Furigana',
+            html: `<p>Your verification code is: <strong>${code}</strong>.</p><p>It expires in ${CODE_EXPIRE_MINUTES} minutes.</p>`,
+          }),
+        });
+        if (!res.ok) {
+          const errBody = await res.text();
+          throw new Error(`Resend API ${res.status}: ${errBody}`);
+        }
+      } else if (host && user && pass) {
         const transporter = nodemailer.createTransport({
           host,
           port,
@@ -105,15 +126,15 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 开发模式：如果未配置 SMTP/短信，返回验证码供前端显示（仅开发环境）
+    // 开发模式：如果未配置 Resend/SMTP/短信，返回验证码供前端显示（仅开发环境）
     const isDev = process.env.NODE_ENV !== 'production';
+    const resendConfigured = !!process.env.RESEND_API_KEY?.trim();
     const smtpConfigured = process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS;
     const smsConfigured = process.env.ALIYUN_ACCESS_KEY_ID && process.env.ALIYUN_ACCESS_KEY_SECRET && process.env.SMS_SIGN_NAME && process.env.SMS_TEMPLATE_CODE;
     
     return NextResponse.json({ 
       success: true,
-      // 仅在开发模式且未配置邮件/短信时返回验证码
-      devCode: (isDev && !smtpConfigured && !smsConfigured) ? code : undefined
+      devCode: (isDev && !resendConfigured && !smtpConfigured && !smsConfigured) ? code : undefined
     });
   } catch (e) {
     const err = e instanceof Error ? e : new Error(String(e));
