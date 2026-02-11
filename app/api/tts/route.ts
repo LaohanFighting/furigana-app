@@ -36,6 +36,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Server error';
+    console.error('[api/tts]', message, e);
     return NextResponse.json(
       { error: message },
       { status: 500 }

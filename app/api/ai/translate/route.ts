@@ -38,6 +38,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, translation });
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Server error';
+    console.error('[api/ai/translate]', message, e);
     return NextResponse.json(
       { success: false, error: message },
       { status: 500 }

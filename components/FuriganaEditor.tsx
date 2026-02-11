@@ -33,6 +33,8 @@ export default function FuriganaEditor({
   const [copyExplainStatus, setCopyExplainStatus] = useState<'idle' | 'ok' | 'fail'>('idle');
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
+  const [aiError, setAiError] = useState('');
+  const [ttsError, setTtsError] = useState('');
 
   async function convert() {
     if (!input.trim()) return;
@@ -60,6 +62,8 @@ export default function FuriganaEditor({
       setIsExplaining(true);
       setZhTranslation('');
       setWordExplanation('');
+      setAiError('');
+      setTtsError('');
       setAudioUrl((prev) => {
         if (prev && prev.startsWith('blob:')) URL.revokeObjectURL(prev);
         return null;
@@ -71,12 +75,19 @@ export default function FuriganaEditor({
         credentials: 'include',
         body: JSON.stringify({ text: inputText }),
       })
-        .then((r) => {
-          if (!r.ok) return null;
+        .then(async (r) => {
+          if (!r.ok) {
+            const j = await r.json().catch(() => ({}));
+            setTtsError((j as { error?: string }).error || `HTTP ${r.status}`);
+            return null;
+          }
           return r.blob();
         })
         .then((blob) => {
           if (blob) setAudioUrl(URL.createObjectURL(blob));
+        })
+        .catch((e) => {
+          setTtsError(e instanceof Error ? e.message : '网络或超时');
         })
         .finally(() => setIsGeneratingAudio(false));
       Promise.all([
@@ -95,7 +106,12 @@ export default function FuriganaEditor({
       ])
         .then(([tr, ex]) => {
           if (tr.success && typeof tr.translation === 'string') setZhTranslation(tr.translation);
+          else if (tr && typeof (tr as { error?: string }).error === 'string') setAiError((prev) => (prev ? `${prev}; ` : '') + `翻译: ${(tr as { error: string }).error}`);
           if (ex.success && typeof ex.explanation === 'string') setWordExplanation(ex.explanation);
+          else if (ex && typeof (ex as { error?: string }).error === 'string') setAiError((prev) => (prev ? `${prev}; ` : '') + `单词: ${(ex as { error: string }).error}`);
+        })
+        .catch((e) => {
+          setAiError(`请求失败: ${e instanceof Error ? e.message : '网络或超时'}`);
         })
         .finally(() => setIsExplaining(false));
     } catch (e) {
@@ -353,6 +369,9 @@ export default function FuriganaEditor({
             {audioUrl && (
               <audio controls src={audioUrl} className="w-full" />
             )}
+            {ttsError && (
+              <p className="text-red-600 text-sm mt-1">朗读：{ttsError}</p>
+            )}
           </div>
           <div className="border-t border-stone-200 pt-4">
             <h3 className="text-sm font-medium text-stone-600 mb-1">{t(locale, 'ai.translation_title')}</h3>
@@ -399,6 +418,9 @@ export default function FuriganaEditor({
                 {copyExplainStatus === 'ok' ? t(locale, 'copy_done') : copyExplainStatus === 'fail' ? t(locale, 'copy_fail') : t(locale, 'copy')}
               </button>
             </div>
+            {aiError && (
+              <p className="text-red-600 text-sm mt-2">{aiError}</p>
+            )}
           </div>
         </div>
       )}
