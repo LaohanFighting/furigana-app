@@ -7,8 +7,9 @@ WORKDIR /app
 # 使用国内镜像加速（腾讯云服务器在大陆时 npm 拉包更稳定）
 RUN npm config set registry https://registry.npmmirror.com && npm config set fetch-timeout 120000
 
+# 安装依赖时跳过 postinstall（此时尚未 COPY prisma，prisma generate 会失败）
 COPY package.json package-lock.json ./
-RUN npm ci --prefer-offline --no-audit || npm install --legacy-peer-deps
+RUN npm ci --prefer-offline --no-audit --ignore-scripts || npm install --legacy-peer-deps --ignore-scripts
 
 COPY prisma ./prisma/
 RUN npx prisma generate
