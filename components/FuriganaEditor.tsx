@@ -90,30 +90,47 @@ export default function FuriganaEditor({
           setTtsError(e instanceof Error ? e.message : '网络或超时');
         })
         .finally(() => setIsGeneratingAudio(false));
-      Promise.all([
-        fetch('/api/ai/translate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ text: inputText }),
-        }).then((r) => r.json()),
-        fetch('/api/ai/explain-words', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ text: inputText }),
-        }).then((r) => r.json()),
-      ])
-        .then(([tr, ex]) => {
-          if (tr.success && typeof tr.translation === 'string') setZhTranslation(tr.translation);
-          else if (tr && typeof (tr as { error?: string }).error === 'string') setAiError((prev) => (prev ? `${prev}; ` : '') + `翻译: ${(tr as { error: string }).error}`);
-          if (ex.success && typeof ex.explanation === 'string') setWordExplanation(ex.explanation);
-          else if (ex && typeof (ex as { error?: string }).error === 'string') setAiError((prev) => (prev ? `${prev}; ` : '') + `单词: ${(ex as { error: string }).error}`);
+      // 分别请求翻译和单词解释，先完成的先显示
+      const translatePromise = fetch('/api/ai/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ text: inputText }),
+      })
+        .then((r) => r.json())
+        .then((tr) => {
+          if (tr.success && typeof tr.translation === 'string') {
+            setZhTranslation(tr.translation);
+          } else if (tr && typeof (tr as { error?: string }).error === 'string') {
+            setAiError((prev) => (prev ? `${prev}; ` : '') + `翻译: ${(tr as { error: string }).error}`);
+          }
         })
         .catch((e) => {
-          setAiError(`请求失败: ${e instanceof Error ? e.message : '网络或超时'}`);
+          setAiError((prev) => (prev ? `${prev}; ` : '') + `翻译请求失败: ${e instanceof Error ? e.message : '网络或超时'}`);
+        });
+
+      const explainPromise = fetch('/api/ai/explain-words', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ text: inputText }),
+      })
+        .then((r) => r.json())
+        .then((ex) => {
+          if (ex.success && typeof ex.explanation === 'string') {
+            setWordExplanation(ex.explanation);
+          } else if (ex && typeof (ex as { error?: string }).error === 'string') {
+            setAiError((prev) => (prev ? `${prev}; ` : '') + `单词: ${(ex as { error: string }).error}`);
+          }
         })
-        .finally(() => setIsExplaining(false));
+        .catch((e) => {
+          setAiError((prev) => (prev ? `${prev}; ` : '') + `单词请求失败: ${e instanceof Error ? e.message : '网络或超时'}`);
+        });
+
+      // 等待两个请求都完成（无论成功或失败）后，设置 isExplaining 为 false
+      Promise.allSettled([translatePromise, explainPromise]).finally(() => {
+        setIsExplaining(false);
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Network error');
     } finally {
@@ -268,18 +285,48 @@ export default function FuriganaEditor({
     try {
       const plainText = htmlToPlainText(html);
       const htmlForClipboard = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>${html}</body></html>`;
+      
+      // 优先使用现代 Clipboard API
       if (navigator.clipboard && typeof navigator.clipboard.write === 'function') {
-        await navigator.clipboard.write([
-          new ClipboardItem({
-            'text/html': new Blob([htmlForClipboard], { type: 'text/html' }),
-            'text/plain': new Blob([plainText], { type: 'text/plain' }),
-          }),
-        ]);
-      } else {
-        await navigator.clipboard.writeText(plainText);
+        try {
+          await navigator.clipboard.write([
+            new ClipboardItem({
+              'text/html': new Blob([htmlForClipboard], { type: 'text/html' }),
+              'text/plain': new Blob([plainText], { type: 'text/plain' }),
+            }),
+          ]);
+          setCopyStatus('ok');
+          setTimeout(() => setCopyStatus('idle'), 2000);
+          return;
+        } catch (e) {
+          // ClipboardItem 失败，降级到纯文本
+          console.warn('ClipboardItem failed, falling back to text:', e);
+        }
       }
-      setCopyStatus('ok');
-      setTimeout(() => setCopyStatus('idle'), 2000);
+      
+      // 降级方案：使用 textarea + execCommand
+      const textarea = document.createElement('textarea');
+      textarea.value = plainText;
+      textarea.style.position = 'fixed';
+      textarea.style.left = '-9999px';
+      textarea.style.top = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      textarea.setSelectionRange(0, plainText.length);
+      
+      try {
+        const success = document.execCommand('copy');
+        document.body.removeChild(textarea);
+        if (success) {
+          setCopyStatus('ok');
+          setTimeout(() => setCopyStatus('idle'), 2000);
+        } else {
+          throw new Error('execCommand failed');
+        }
+      } catch (e) {
+        document.body.removeChild(textarea);
+        throw e;
+      }
     } catch {
       setCopyStatus('fail');
       setTimeout(() => setCopyStatus('idle'), 2000);
@@ -293,9 +340,37 @@ export default function FuriganaEditor({
     if (!text) return;
     setStatus('idle');
     try {
-      await navigator.clipboard.writeText(text);
-      setStatus('ok');
-      setTimeout(() => setStatus('idle'), 2000);
+      // 优先使用现代 Clipboard API
+      if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        await navigator.clipboard.writeText(text);
+        setStatus('ok');
+        setTimeout(() => setStatus('idle'), 2000);
+        return;
+      }
+      
+      // 降级方案：使用 textarea + execCommand
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.left = '-9999px';
+      textarea.style.top = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      textarea.setSelectionRange(0, text.length);
+      
+      try {
+        const success = document.execCommand('copy');
+        document.body.removeChild(textarea);
+        if (success) {
+          setStatus('ok');
+          setTimeout(() => setStatus('idle'), 2000);
+        } else {
+          throw new Error('execCommand failed');
+        }
+      } catch (e) {
+        document.body.removeChild(textarea);
+        throw e;
+      }
     } catch {
       setStatus('fail');
       setTimeout(() => setStatus('idle'), 2000);
