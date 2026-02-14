@@ -76,9 +76,11 @@ export async function translateJapaneseToChinese(text: string): Promise<string> 
 
 const EXPLAIN_WORDS_FROM_LIST_SYSTEM = `你是一个日语词汇教师。用户会给出一个「单词(读法)」的列表，每一项都是完整单词（含汉字与送假名），例如 訪れる(おとずれる)。请对每个完整单词释义，不要只解释其中的汉字部分，要解释整个词。
 
+【硬性规定】「单词」这一行的格式必须是：单词：原词(假名读法) ①（即冒号后、原词与假名写完后，加一个空格，再写一个圆圈数字 ①②③④⑤ 之一）。示例：单词：天気(てんき) ①。不得省略音调数字。①②③④⑤ 对应东京声调：①平板、②頭高、③④⑤中高型等，请按该词标准读法选择。
+
 对每个单词严格按以下格式输出（纯文本，不要用 Markdown 或 HTML）：
 
-单词：原词(假名读法)
+单词：原词(假名读法) ①
 词性：名词/动词/形容词等
 意思：中文释义
 例句：
@@ -93,6 +95,22 @@ export type WordWithReading = { word: string; reading: string };
 /**
  * 对「已给出的单词列表」逐条解释，例句必须为新造句，不得引用用户输入；例句翻译的标签为「中文翻译」。
  */
+const PITCH_CHARS = new Set(['①', '②', '③', '④', '⑤']);
+
+/** 为「单词：…」行补上音调数字（若末尾没有 ①②③④⑤ 则补 ①），保证格式为 原词(读法) ① */
+function ensurePitchOnWordLines(text: string): string {
+  return text
+    .split('\n')
+    .map((line) => {
+      const t = line.trimEnd();
+      if (!t.startsWith('单词：') || !t.includes('(') || !t.includes(')')) return line;
+      const lastChar = t.slice(-1);
+      if (PITCH_CHARS.has(lastChar)) return line;
+      return line.replace(/\s*$/, ' ①');
+    })
+    .join('\n');
+}
+
 export async function explainJapaneseWordsFromList(
   words: WordWithReading[]
 ): Promise<string> {
@@ -104,5 +122,6 @@ export async function explainJapaneseWordsFromList(
   const userContent = filtered
     .map((w) => `${w.word}(${w.reading})`)
     .join('\n');
-  return chat(userContent, EXPLAIN_WORDS_FROM_LIST_SYSTEM, { max_tokens: 4096 });
+  const raw = await chat(userContent, EXPLAIN_WORDS_FROM_LIST_SYSTEM, { max_tokens: 4096 });
+  return ensurePitchOnWordLines(raw);
 }
