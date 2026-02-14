@@ -184,7 +184,7 @@ function getLocale(): 'zh' | 'ja' | 'en' {
   return lang === 'ja' || lang === 'en' ? lang : 'zh';
 }
 
-export default function DeliveriesPage() {
+function DeliveriesPageInner() {
   const initial = getLocale();
   return (
     <LocaleProvider initial={initial}>
@@ -205,5 +205,13 @@ export default function DeliveriesPage() {
         </Suspense>
       </main>
     </LocaleProvider>
+  );
+}
+
+export default function DeliveriesPage() {
+  return (
+    <Suspense fallback={<div className="max-w-3xl mx-auto px-4 py-12 text-center text-stone-500">Loading…</div>}>
+      <DeliveriesPageInner />
+    </Suspense>
   );
 }
