@@ -10,6 +10,7 @@ RUN npm config set registry https://registry.npmmirror.com && npm config set fet
 
 # 安装依赖时跳过 postinstall（此时尚未 COPY prisma，prisma generate 会失败）
 COPY package.json package-lock.json ./
+RUN apt-get update -y && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 RUN npm ci --prefer-offline --no-audit --ignore-scripts || npm install --legacy-peer-deps --ignore-scripts
 
 COPY prisma ./prisma/

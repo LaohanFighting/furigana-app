@@ -188,7 +188,9 @@ export default function DeliveriesPage() {
   const initial = getLocale();
   return (
     <LocaleProvider initial={initial}>
-      <SyncLocaleFromUrl />
+      <Suspense fallback={null}>
+        <SyncLocaleFromUrl />
+      </Suspense>
       <header className="border-b border-stone-200 bg-white">
         <div className="max-w-3xl mx-auto px-4 py-3 flex justify-between items-center">
           <Link href="/" className="text-amber-700 font-medium hover:underline">
