@@ -41,8 +41,15 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // 显式排除已被任意 DeliveryRequest 占用的激活码，避免 P2002
+    const assignedIds = await prisma.deliveryRequest
+      .findMany({
+        where: { activationCodeId: { not: null } },
+        select: { activationCodeId: true },
+      })
+      .then((rows) => rows.map((r) => r.activationCodeId).filter((id): id is string => id != null));
     const available = await prisma.activationCode.findFirst({
-      where: { used: false },
+      where: { used: false, id: { notIn: assignedIds } },
       orderBy: { createdAt: 'asc' },
     });
     if (!available) {
@@ -61,14 +68,25 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') ?? '';
+    const raw = process.env.NEXT_PUBLIC_APP_URL ?? '';
+    const baseUrl = raw.replace(/\/$/, '').replace(/^["']|["']$/g, '').trim();
     return NextResponse.json({
       success: true,
       activationCode: available.code,
       activateUrl: baseUrl ? `${baseUrl}/activate` : '/activate',
     });
-  } catch (e) {
-    console.error('[api/admin/deliveries/issue]', e);
-    return NextResponse.json({ success: false, error: 'Server error' }, { status: 500 });
+  } catch (e: unknown) {
+    const err = e as Error & { code?: string };
+    console.error('[api/admin/deliveries/issue]', err?.message ?? e, err);
+    // 常见原因：未执行迁移或数据库不可用
+    const hint =
+      err?.code === 'P2021' || err?.message?.includes('does not exist')
+        ? '数据库表未就绪，请在服务器执行: npx prisma migrate deploy'
+        : err?.code === 'P2002'
+          ? '该激活码已被发放，请重新生成新激活码后再试'
+          : err?.message && err.message.length < 120
+            ? err.message
+            : 'Server error（请查看服务器日志: docker logs nihongo-go）';
+    return NextResponse.json({ success: false, error: hint }, { status: 500 });
   }
 }
