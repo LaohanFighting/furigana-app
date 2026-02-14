@@ -126,12 +126,20 @@ function AdminContent() {
     <div className="max-w-2xl mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-xl font-semibold">{t(locale, 'access.admin')}</h1>
-        <Link
-          href="/dashboard"
-          className="text-sm text-amber-600 hover:underline"
-        >
-          返回标注工具
-        </Link>
+        <div className="flex gap-4">
+          <Link
+            href="/dashboard/admin/deliveries"
+            className="text-sm text-amber-600 hover:underline"
+          >
+            发货管理
+          </Link>
+          <Link
+            href="/dashboard"
+            className="text-sm text-amber-600 hover:underline"
+          >
+            返回标注工具
+          </Link>
+        </div>
       </div>
       <p className="text-stone-600 text-sm mb-4">{t(locale, 'access.pending_requests')}</p>
       {list.length === 0 ? (

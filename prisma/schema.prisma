@@ -74,4 +74,18 @@ model ActivationCode {
   createdAt DateTime @default(now())
   usedAt    DateTime?  // 使用时间
   user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  delivery  DeliveryRequest?  // 若通过「领取页」发放，关联一条发放记录
+}
+
+// 小红书等渠道：用户付款后提交订单号，管理员发放激活码，用户自助查询
+model DeliveryRequest {
+  id               String    @id @default(cuid())
+  orderId          String    // 用户填的订单号（小红书订单号等）
+  contactSuffix    String    // 手机号后4位或邮箱后缀，用于用户自助查询时核验
+  contactFull      String?   // 可选：完整手机/邮箱，仅管理员可见
+  status           String    @default("pending")  // pending | issued
+  activationCodeId String?   @unique  // 发放后关联的激活码ID
+  activationCode   ActivationCode? @relation(fields: [activationCodeId], references: [id], onDelete: SetNull)
+  createdAt        DateTime  @default(now())
+  issuedAt         DateTime? // 发放时间
 }
