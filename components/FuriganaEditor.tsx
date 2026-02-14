@@ -312,7 +312,7 @@ export default function FuriganaEditor({
       white-space: nowrap;
     }
     rt {
-      font-size: 0.42em;
+      font-size: 0.7em;
       line-height: 1;
       color: #666;
     }
@@ -454,7 +454,7 @@ export default function FuriganaEditor({
   }
 
   return (
-    <div className="space-y-4 max-w-2xl mx-auto">
+    <div className="space-y-4 max-w-2xl mx-auto min-w-0">
       <div>
         <label className="block text-sm font-medium text-stone-600 mb-1">
           {t(locale, 'input.placeholder')}
@@ -478,7 +478,7 @@ export default function FuriganaEditor({
       {error && <p className="text-red-600 text-sm">{error}</p>}
       {html && (
         <div className="space-y-4">
-          <div>
+          <div className="min-w-0 overflow-hidden">
             <h3 className="text-sm font-medium text-stone-600 mb-1">{t(locale, 'output.title')}</h3>
             <div
               ref={resultScrollRef}

@@ -36,9 +36,9 @@
   white-space: nowrap;
 }
 
-/* rt 不设置 display，只调字体 */
+/* rt 注音假名字体（调大以便阅读） */
 .furigana-result rt {
-  font-size: 0.55em;
+  font-size: 0.72em;
   line-height: 1;
   color: #666;
 }
