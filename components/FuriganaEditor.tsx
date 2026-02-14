@@ -454,7 +454,7 @@ export default function FuriganaEditor({
   }
 
   return (
-    <div className="space-y-4 max-w-2xl mx-auto min-w-0">
+    <div className="space-y-4 max-w-2xl mx-auto">
       <div>
         <label className="block text-sm font-medium text-stone-600 mb-1">
           {t(locale, 'input.placeholder')}
@@ -478,38 +478,30 @@ export default function FuriganaEditor({
       {error && <p className="text-red-600 text-sm">{error}</p>}
       {html && (
         <div className="space-y-4">
-          <div className="min-w-0 overflow-hidden">
+          <div>
             <h3 className="text-sm font-medium text-stone-600 mb-1">{t(locale, 'output.title')}</h3>
             <div
               ref={resultScrollRef}
-              className="furigana-result-scroll border border-stone-200 rounded-lg bg-white"
-              style={{
-                width: '100%',
-                maxWidth: '100%',
-                overflowX: 'hidden',
-                overflowY: 'auto',
-                maxHeight: '12em',
-              }}
+              onScroll={onResultScroll}
+              className="furigana-result-scroll overflow-x-auto overflow-y-hidden border border-stone-200 rounded-lg bg-white"
             >
-              <div
-                className="furigana-result p-4 text-lg leading-relaxed"
-                style={{ width: '100%', minWidth: 0, boxSizing: 'border-box' }}
-              >
-                <span
-                  className="furigana-result-inner"
-                  style={{
-                    display: 'block',
-                    whiteSpace: 'normal',
-                    width: '100%',
-                    maxWidth: '100%',
-                    overflowWrap: 'break-word',
-                    wordBreak: 'break-word',
-                    boxSizing: 'border-box',
-                  }}
-                  dangerouslySetInnerHTML={{ __html: html }}
-                />
+              <div className="furigana-result min-w-min p-4 text-lg leading-relaxed">
+                <span className="furigana-result-inner" dangerouslySetInnerHTML={{ __html: html }} />
               </div>
             </div>
+            {scrollMax > 0 && (
+              <div className="mt-2 flex items-center gap-2">
+                <span className="text-xs text-stone-500 whitespace-nowrap">左右滑动</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={scrollMax}
+                  value={scrollLeft}
+                  onChange={(e) => onSliderChange(Number(e.target.value))}
+                  className="flex-1 h-2 rounded-lg appearance-none bg-stone-200 accent-amber-600"
+                />
+              </div>
+            )}
             <div className="mt-2">
               <button
                 type="button"

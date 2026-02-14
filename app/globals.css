@@ -43,27 +43,19 @@
   color: #666;
 }
 
-/* 生成结果区：在容器边缘自动换行，过长时纵向滚动（禁止横向滚动） */
+/* 生成结果区：横向滚动，左右滑块查看长内容 */
 .furigana-result-scroll {
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
   max-height: 12em;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
 }
 .furigana-result-scroll .furigana-result {
   display: block;
-  width: 100%;
-  min-width: 0;
-  box-sizing: border-box;
 }
-/* 在文本框边缘自动换行，不改变内容生成逻辑；覆盖任何 nowrap */
 .furigana-result-scroll .furigana-result-inner {
-  white-space: normal !important;
-  display: block !important;
-  max-width: 100%;
+  white-space: nowrap;
+  display: inline-block;
 }
 
 body {
