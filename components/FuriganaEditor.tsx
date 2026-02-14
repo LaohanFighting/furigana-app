@@ -482,31 +482,34 @@ export default function FuriganaEditor({
             <h3 className="text-sm font-medium text-stone-600 mb-1">{t(locale, 'output.title')}</h3>
             <div
               ref={resultScrollRef}
-              onScroll={onResultScroll}
               className="furigana-result-scroll border border-stone-200 rounded-lg bg-white"
-              style={{ overflowX: 'hidden', overflowY: 'auto', maxHeight: '12em' }}
+              style={{
+                width: '100%',
+                maxWidth: '100%',
+                overflowX: 'hidden',
+                overflowY: 'auto',
+                maxHeight: '12em',
+              }}
             >
-              <div className="furigana-result w-full min-w-0 p-4 text-lg leading-relaxed break-words" style={{ minWidth: 0 }}>
+              <div
+                className="furigana-result p-4 text-lg leading-relaxed"
+                style={{ width: '100%', minWidth: 0, boxSizing: 'border-box' }}
+              >
                 <span
                   className="furigana-result-inner"
-                  style={{ display: 'block', whiteSpace: 'normal', maxWidth: '100%' }}
+                  style={{
+                    display: 'block',
+                    whiteSpace: 'normal',
+                    width: '100%',
+                    maxWidth: '100%',
+                    overflowWrap: 'break-word',
+                    wordBreak: 'break-word',
+                    boxSizing: 'border-box',
+                  }}
                   dangerouslySetInnerHTML={{ __html: html }}
                 />
               </div>
             </div>
-            {scrollMax > 0 && (
-              <div className="mt-2 flex items-center gap-2">
-                <span className="text-xs text-stone-500 whitespace-nowrap">左右滑动</span>
-                <input
-                  type="range"
-                  min={0}
-                  max={scrollMax}
-                  value={scrollLeft}
-                  onChange={(e) => onSliderChange(Number(e.target.value))}
-                  className="flex-1 h-2 rounded-lg appearance-none bg-stone-200 accent-amber-600"
-                />
-              </div>
-            )}
             <div className="mt-2">
               <button
                 type="button"
