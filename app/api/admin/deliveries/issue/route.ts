@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
     });
 
     const raw = process.env.NEXT_PUBLIC_APP_URL ?? '';
-    const baseUrl = raw.replace(/\/$/, '').replace(/^["']|["']$/g, '').trim();
+    const baseUrl = raw.replace(/["'\u201C\u201D\u2018\u2019]/g, '').replace(/\/+$/, '').trim();
     return NextResponse.json({
       success: true,
       activationCode: available.code,

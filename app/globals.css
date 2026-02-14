@@ -43,18 +43,20 @@
   color: #666;
 }
 
-/* 生成结果横向滚动区：可左右拖动查看，不改变内容生成逻辑 */
+/* 生成结果区：在容器边缘自动换行，过长时纵向滚动 */
 .furigana-result-scroll {
   max-height: 12em;
+  overflow-y: auto;
+  overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
 }
 .furigana-result-scroll .furigana-result {
   display: block;
 }
-/* 滚动区内不换行，使内容横向溢出，才能出现横向滚动条/滑块 */
+/* 在文本框边缘自动换行，不改变内容生成逻辑 */
 .furigana-result-scroll .furigana-result-inner {
-  white-space: nowrap;
-  display: inline-block;
+  white-space: normal;
+  display: block;
 }
 
 body {

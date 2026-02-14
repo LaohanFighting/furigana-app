@@ -34,13 +34,13 @@ export async function POST(request: NextRequest) {
         const code = await prisma.activationCode.findUnique({
           where: { id: existing.activationCodeId },
         });
+        const raw = process.env.NEXT_PUBLIC_APP_URL ?? '';
+        const baseUrl = raw.replace(/["'\u201C\u201D\u2018\u2019]/g, '').replace(/\/+$/, '').trim();
         return NextResponse.json({
           success: true,
           status: 'issued',
           activationCode: code?.code ?? null,
-          activateUrl: process.env.NEXT_PUBLIC_APP_URL
-            ? `${process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '')}/activate`
-            : '/activate',
+          activateUrl: baseUrl ? `${baseUrl}/activate` : '/activate',
         });
       }
       return NextResponse.json({

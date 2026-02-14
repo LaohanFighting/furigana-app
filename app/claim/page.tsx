@@ -154,14 +154,20 @@ export default function ClaimPage() {
                   {result.activationCode}
                 </p>
                 <p className="text-sm text-stone-500 mb-2">请复制激活码，并打开下方链接完成激活：</p>
-                <a
-                  href={result.activateUrl || '/activate'}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-amber-600 hover:underline break-all"
-                >
-                  {result.activateUrl || '/activate'}
-                </a>
+                {(() => {
+                  // 去掉所有引号（含 ASCII 与 Unicode 弯引号 “ ” ‘ ’），避免链接带引号无法打开
+                  const url = (result.activateUrl || '/activate').replace(/["'\u201C\u201D\u2018\u2019]/g, '').trim() || '/activate';
+                  return (
+                    <a
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-amber-600 hover:underline break-all"
+                    >
+                      {url}
+                    </a>
+                  );
+                })()}
               </>
             ) : (
               <p className="text-stone-600">{result.message || '请等待发放后再次查询。'}</p>

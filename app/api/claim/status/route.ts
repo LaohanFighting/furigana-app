@@ -35,7 +35,8 @@ export async function GET(request: NextRequest) {
     }
 
     if (req.status === 'issued' && req.activationCode) {
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') ?? '';
+      const raw = process.env.NEXT_PUBLIC_APP_URL ?? '';
+      const baseUrl = raw.replace(/["'\u201C\u201D\u2018\u2019]/g, '').replace(/\/+$/, '').trim();
       return NextResponse.json({
         success: true,
         status: 'issued',

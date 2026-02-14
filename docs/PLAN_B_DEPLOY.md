@@ -68,10 +68,15 @@ UPDATE "User" SET "isAdmin" = true WHERE email = '你的管理员邮箱';
 
 或临时在 Prisma Studio / 数据库管理工具里把对应用户的 `isAdmin` 设为 `true`。
 
-## 三、上线后自测
+## 三、上线后自测 / 如何测试激活码领取页
 
-1. **领取页**  
-   打开 `https://你的域名/claim`，填写订单号（可填测试如 `test001`）+ 手机后4位（如 `1234`），提交。应提示「提交成功，请等待发放」。
+按下面顺序在浏览器和后台各做一遍，即可完整验证领取流程。
+
+1. **领取页 - 提交请求**  
+   打开 `https://你的域名/claim`（生产用 `https://nihongo-tool.cn/claim`）。  
+   - 订单号：可填测试值如 `test001`  
+   - 手机号后4位：如 `1234`  
+   点击「提交领取请求」。应提示「提交成功，请等待发放」或类似文案。
 
 2. **管理后台**  
    用管理员账号登录 → 打开「管理」→「发货管理」（或 `https://你的域名/dashboard/admin/deliveries`）。应看到刚才的待发放记录，点击「发放」。若提示「暂无可用激活码」，需先生成：
@@ -103,3 +108,67 @@ docker exec -it nihongo-go node scripts/generate-activation-code.js 50 0
 | 管理员-发货  | https://你的域名/dashboard/admin/deliveries |
 
 将上述链接写入 `docs/XIAOHONGSHU_AUTO_DELIVERY.md` 中的话术模板后即可发给用户使用。
+
+## 六、故障排查：/claim 显示 404
+
+**原因**：多为服务器上的镜像或代码未更新，或 Nginx 未把 `/claim` 转发到应用。
+
+**在服务器上按顺序做：**
+
+1. **重新拉代码、构建并重启容器**（最常见可解决）  
+   ```bash
+   cd ~/furigana-app
+   git pull
+   docker build -t nihongo-go .
+   docker rm -f nihongo-go
+   docker run -d --name nihongo-go -p 3001:3000 --env-file .env --restart unless-stopped nihongo-go
+   ```
+
+2. **确认应用本身有 /claim**（在服务器上执行）  
+   ```bash
+   curl -s -o /dev/null -w "%{http_code}" http://localhost:3001/claim
+   ```  
+   应输出 `200`。若为 `404`，说明当前镜像里没有该路由，需确认 `git pull` 拉到了包含 `app/claim/page.tsx` 的代码后再重新 `docker build`。
+
+3. **确认 Nginx 全站转发**  
+   Nginx 需把整站（含 `/claim`）反代到 3001，例如：  
+   ```nginx
+   location / {
+       proxy_pass http://localhost:3001;
+       proxy_http_version 1.1;
+       proxy_set_header Host $host;
+       proxy_set_header X-Real-IP $remote_addr;
+       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+       proxy_set_header X-Forwarded-Proto $scheme;
+       proxy_cache_bypass $http_upgrade;
+   }
+   ```  
+   若只有根路径或部分路径被代理，会出现域名访问 404 而 `curl http://localhost:3001/claim` 正常。修改后执行 `sudo nginx -t` 再 `sudo systemctl restart nginx`。
+
+## 七、故障排查：点击「发放」报 Server error
+
+**可能原因 1：数据库未执行迁移**（表 `DeliveryRequest` 等不存在）
+
+在服务器上执行（二选一）：
+
+```bash
+# 宿主机执行（需能连上 DATABASE_URL）
+cd ~/furigana-app && npx prisma migrate deploy
+
+# 或进容器执行
+docker exec -it nihongo-go npx prisma migrate deploy
+```
+
+**可能原因 2：没有可用激活码**
+
+先生成一批再发放：
+
+```bash
+docker exec -it nihongo-go node scripts/generate-activation-code.js 10 0
+```
+
+**查看具体错误**：接口会尽量返回简短提示；完整堆栈看容器日志：
+
+```bash
+docker logs nihongo-go --tail 100
+```
