@@ -484,9 +484,14 @@ export default function FuriganaEditor({
               ref={resultScrollRef}
               onScroll={onResultScroll}
               className="furigana-result-scroll border border-stone-200 rounded-lg bg-white"
+              style={{ overflowX: 'hidden', overflowY: 'auto', maxHeight: '12em' }}
             >
-              <div className="furigana-result w-full min-w-0 p-4 text-lg leading-relaxed break-words">
-                <span className="furigana-result-inner" dangerouslySetInnerHTML={{ __html: html }} />
+              <div className="furigana-result w-full min-w-0 p-4 text-lg leading-relaxed break-words" style={{ minWidth: 0 }}>
+                <span
+                  className="furigana-result-inner"
+                  style={{ display: 'block', whiteSpace: 'normal', maxWidth: '100%' }}
+                  dangerouslySetInnerHTML={{ __html: html }}
+                />
               </div>
             </div>
             {scrollMax > 0 && (
